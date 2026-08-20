@@ -54,6 +54,10 @@ void SceneController::setPreviewQuality(PreviewQuality quality) {
   }
 }
 
+void SceneController::setFrameLimitFps(int fps) {
+  frameLimitFps_ = std::clamp(fps, 5, 60);
+}
+
 bool SceneController::consumePipelineRebuildRequest() {
   return std::exchange(pipelineRebuildRequested_, false);
 }
@@ -124,8 +128,13 @@ void SceneController::updateWindowTitle(GLFWwindow *window) const {
         << " | shift " << parameters_.camera.horizontalShift << ", "
         << parameters_.options.verticalShift << " | Doppler "
         << (parameters_.options.frequencyShiftsEnabled > 0.5f ? "on" : "off")
-        << " | FPS cap " << (frameLimitEnabled_ ? "15" : "off")
-        << (paused_ ? " | PAUSED" : "")
+        << " | FPS cap ";
+  if (frameLimitEnabled_) {
+    title << frameLimitFps_;
+  } else {
+    title << "off";
+  }
+  title << (paused_ ? " | PAUSED" : "")
         << " | Space/R/D/F, arrows, [/], -/=, Esc";
   glfwSetWindowTitle(window, title.str().c_str());
 }
@@ -136,7 +145,7 @@ void SceneController::printHelp() {
             << "  Space     pause/resume disk animation\n"
             << "  R         restore the paper-inspired defaults\n"
             << "  D         toggle relativistic Doppler beaming\n"
-            << "  F         toggle the 15 FPS desktop-friendly cap\n"
+            << "  F         toggle the configured FPS cap\n"
             << "  F1        show/hide the parameter menu\n"
             << "  Arrows    move the lens framing (horizontal/vertical)\n"
             << "  [ / ]     decrease/increase dimensionless spin\n"

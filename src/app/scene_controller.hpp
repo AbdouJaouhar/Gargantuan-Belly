@@ -21,6 +21,7 @@ public:
   RenderParameters &parameters() { return parameters_; }
   const RenderParameters &parameters() const { return parameters_; }
   bool frameLimitEnabled() const { return frameLimitEnabled_; }
+  int frameLimitFps() const { return frameLimitFps_; }
   bool paused() const { return paused_; }
   PreviewQuality previewQuality() const { return previewQuality_; }
   float animationTime() const;
@@ -30,6 +31,7 @@ public:
   void resetToFigure15a();
   void setPaused(bool paused);
   void setFrameLimitEnabled(bool enabled) { frameLimitEnabled_ = enabled; }
+  void setFrameLimitFps(int fps);
   void setPreviewQuality(PreviewQuality quality);
   bool consumePipelineRebuildRequest();
   static void printHelp();
@@ -40,6 +42,7 @@ private:
   RenderParameters parameters_{};
   bool paused_ = false;
   bool frameLimitEnabled_ = true;
+  int frameLimitFps_ = 15;
   PreviewQuality previewQuality_ = PreviewQuality::Balanced;
   bool pipelineRebuildRequested_ = false;
   float pausedTime_ = 0.0f;

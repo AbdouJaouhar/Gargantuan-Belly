@@ -243,9 +243,19 @@ void ParameterMenu::draw(app::SceneController &scene,
     helpMarker("Rebuilds only the ray pipeline. Performance uses fewer, larger "
                "RK4 steps; high detail is intended for inspection.");
     bool frameLimit = scene.frameLimitEnabled();
-    if (ImGui::Checkbox("15 FPS laptop cap", &frameLimit)) {
+    if (ImGui::Checkbox("Limit frame rate", &frameLimit)) {
       scene.setFrameLimitEnabled(frameLimit);
     }
+    int frameLimitFps = scene.frameLimitFps();
+    ImGui::BeginDisabled(!frameLimit);
+    if (ImGui::SliderInt("FPS limit", &frameLimitFps, 5, 60, "%d FPS",
+                         ImGuiSliderFlags_AlwaysClamp)) {
+      scene.setFrameLimitFps(frameLimitFps);
+    }
+    ImGui::EndDisabled();
+    helpMarker(
+        "Caps presentation by sleeping after each completed frame. "
+        "Higher limits increase GPU load when the renderer can keep up.");
     bool paused = scene.paused();
     if (ImGui::Checkbox("Pause disk animation", &paused)) {
       scene.setPaused(paused);

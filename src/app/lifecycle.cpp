@@ -20,10 +20,8 @@ using vulkan::checkVk;
 using vulkan::throwVk;
 
 namespace {
-constexpr uint32_t kInitialWidth = 800;
-constexpr uint32_t kInitialHeight = 367;
-constexpr auto kFrameInterval = std::chrono::duration<double>(1.0 / 15.0);
-constexpr auto kGpuBreather = std::chrono::milliseconds(8);
+constexpr uint32_t kInitialWidth = 2000;
+constexpr uint32_t kInitialHeight = 1100;
 } // namespace
 
 Application::Application(const char *argv0) { resolveRunfiles(argv0); }
@@ -45,15 +43,14 @@ void Application::run() {
     drawFrame();
     if (scene_.frameLimitEnabled()) {
       const auto elapsed = std::chrono::steady_clock::now() - frameStart;
+      const auto frameInterval = std::chrono::duration<double>(
+          1.0 / static_cast<double>(scene_.frameLimitFps()));
       const auto target =
           std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-              kFrameInterval);
-      const auto minimumBreather =
-          std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-              kGpuBreather);
-      const auto remaining =
-          target > elapsed ? target - elapsed : minimumBreather;
-      std::this_thread::sleep_for(std::max(remaining, minimumBreather));
+              frameInterval);
+      if (target > elapsed) {
+        std::this_thread::sleep_for(target - elapsed);
+      }
     }
   }
 

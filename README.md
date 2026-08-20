@@ -101,7 +101,7 @@ the Kerr or appearance shaders.
 | `Space` | Pause or resume disk motion |
 | `R` | Restore the paper-inspired shot defaults |
 | `D` | Toggle colour and `g^3` brightness shifts (roughly Figure 15(c)) |
-| `F` | Toggle the desktop-friendly 15 FPS cap |
+| `F` | Toggle the configured FPS cap |
 | `F1` | Show or hide the parameter menu |
 | Arrow keys | Reframe the black hole in the virtual lens |
 | `[` / `]` | Decrease or increase `a/M` between -0.998 and 0.998 |
@@ -109,7 +109,8 @@ the Kerr or appearance shaders.
 | `Esc` | Quit |
 
 The in-window menu exposes camera geometry, spin, disk dimensions and
-temperature, exposure, relativistic shifts, animation state, frame limiting,
+temperature, exposure, relativistic shifts, animation state, an adjustable
+5–60 FPS limit,
 and three ray-integration quality presets. The title displays the corresponding
 live values. ImGui captures keyboard and mouse input while a widget is active,
 so editing a slider does not trigger the renderer shortcuts.
@@ -152,10 +153,11 @@ The full-quality fragment shader permits up to 360 RK4 steps per pixel.  The
 interactive Vulkan pipeline specializes it to 220 larger steps, while the
 headless still renderer retains the full defaults.  Rays that reach the horizon,
 escape to the far-field background, or become opaque in the disk terminate early.
-The initial window is 800×367, uses two frames in flight, and is capped to 15 FPS
-with a mandatory idle interval so it does not continuously saturate the GPU and
-desktop compositor.  Press `F` to remove the cap.  Resize the window downward if
-the selected GPU still cannot sustain an interactive frame rate.
+The interactive renderer uses two frames in flight and defaults to a 15 FPS
+cap. The Performance menu exposes both the enable switch and a 5–60 FPS slider;
+`F` toggles the currently configured value. Select the Performance ray
+integration preset, lower the cap, or resize the window downward for quieter or
+battery-powered operation.
 Headless supersampling cost and image memory scale approximately with the square
 of the selected factor, so 2 is the recommended quality preset and 4 is intended
 for final stills rather than interactive rendering.
