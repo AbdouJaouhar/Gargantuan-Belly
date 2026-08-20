@@ -99,6 +99,7 @@ void Application::recordCommandBuffer(VkCommandBuffer commandBuffer,
                      VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(RenderParameters),
                      &parameters);
   vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+  menu_.record(commandBuffer);
   vkCmdEndRenderPass(commandBuffer);
   checkVk(vkEndCommandBuffer(commandBuffer), "vkEndCommandBuffer");
 }

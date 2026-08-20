@@ -90,6 +90,10 @@ The first build downloads the pinned Bazel module dependencies.  Bazel compiles
 both GLSL shaders to SPIR-V; there is no manual shader-build step and no texture
 asset to download.
 
+The interactive controls use checksum-pinned Dear ImGui 1.92.9. Its GLFW and
+Vulkan backends are built as a separate Bazel library; no UI code is mixed into
+the Kerr or appearance shaders.
+
 ### Controls
 
 | Key | Effect |
@@ -98,13 +102,17 @@ asset to download.
 | `R` | Restore the paper-inspired shot defaults |
 | `D` | Toggle colour and `g^3` brightness shifts (roughly Figure 15(c)) |
 | `F` | Toggle the desktop-friendly 15 FPS cap |
+| `F1` | Show or hide the parameter menu |
 | Arrow keys | Reframe the black hole in the virtual lens |
 | `[` / `]` | Decrease or increase `a/M` between -0.998 and 0.998 |
 | `-` / `=` | Decrease or increase exposure |
 | `Esc` | Quit |
 
-The window title displays the live exposure, spin, framing shift, and Doppler
-state.
+The in-window menu exposes camera geometry, spin, disk dimensions and
+temperature, exposure, relativistic shifts, animation state, frame limiting,
+and three ray-integration quality presets. The title displays the corresponding
+live values. ImGui captures keyboard and mouse input while a widget is active,
+so editing a slider does not trigger the renderer shortcuts.
 
 ### Windowless snapshot
 
@@ -132,10 +140,11 @@ fringes.  Tools such as ImageMagick can convert the result with
 bazel test //:tests
 ```
 
-The suite protects the paper preset, CPU/GLSL push-constant field contract, and
-linear-light PPM downsampling. Shader compilation remains part of every normal
-build. If `VK_LAYER_KHRONOS_validation` is installed, both front ends discover
-and enable it automatically and report warnings through the debug messenger.
+The suite protects the paper preset, runtime quality-state transitions, the
+CPU/GLSL push-constant field contract, and linear-light PPM downsampling.
+Shader compilation remains part of every normal build. If
+`VK_LAYER_KHRONOS_validation` is installed, both front ends discover and enable
+it automatically and report warnings through the debug messenger.
 
 ## Performance and tuning
 
@@ -194,11 +203,13 @@ styling or Vulkan plumbing:
 BUILD.bazel                    Executable targets and shader runfiles
 src/app/                       Window lifecycle, controls, swapchain, frames
 src/rendering/                 Shared pipeline, settings, offscreen renderer
+src/ui/parameter_menu.cpp      Dear ImGui controls and presentation styling
 src/io/ppm_writer.cpp          Linear-light downsampling and PPM encoding
 src/tools/render_still.cpp     Minimal still-renderer entry point
 shaders/physics/               Kerr metric, state, geodesics, FIDO camera
 shaders/appearance/            Noise, colour science, disk material
 shaders/black_hole.frag        Ray/light integration and display pipeline
 shaders/render_parameters.glsl GPU parameter contract and quality constants
-tests/                         Preset, shader-interface, and image-I/O tests
+tests/                         Preset, UI-state, shader-interface, and I/O tests
+third_party/                   Bazel definitions for pinned external sources
 ```

@@ -7,10 +7,11 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <utility>
 
 namespace gargantua::app {
 
-SceneController::SceneController() { reset(); }
+SceneController::SceneController() { resetToFigure15a(); }
 
 float SceneController::animationTime() const {
   if (paused_) {
@@ -21,9 +22,14 @@ float SceneController::animationTime() const {
       .count();
 }
 
-void SceneController::togglePaused() {
+void SceneController::togglePaused() { setPaused(!paused_); }
+
+void SceneController::setPaused(bool paused) {
+  if (paused == paused_) {
+    return;
+  }
   const auto now = std::chrono::steady_clock::now();
-  if (paused_) {
+  if (!paused) {
     animationStart_ =
         now - std::chrono::duration_cast<std::chrono::steady_clock::duration>(
                   std::chrono::duration<float>(pausedTime_));
@@ -34,11 +40,22 @@ void SceneController::togglePaused() {
   }
 }
 
-void SceneController::reset() {
+void SceneController::resetToFigure15a() {
   parameters_ = figure15aParameters();
   paused_ = false;
   pausedTime_ = 0.0f;
   animationStart_ = std::chrono::steady_clock::now();
+}
+
+void SceneController::setPreviewQuality(PreviewQuality quality) {
+  if (quality != previewQuality_) {
+    previewQuality_ = quality;
+    pipelineRebuildRequested_ = true;
+  }
+}
+
+bool SceneController::consumePipelineRebuildRequest() {
+  return std::exchange(pipelineRebuildRequested_, false);
 }
 
 void SceneController::handleKey(GLFWwindow *window, int key, int action) {
@@ -55,7 +72,7 @@ void SceneController::handleKey(GLFWwindow *window, int key, int action) {
     togglePaused();
     changed = true;
   } else if (key == GLFW_KEY_R && action == GLFW_PRESS) {
-    reset();
+    resetToFigure15a();
     changed = true;
   } else if (key == GLFW_KEY_D && action == GLFW_PRESS) {
     parameters_.options.frequencyShiftsEnabled =
@@ -120,6 +137,7 @@ void SceneController::printHelp() {
             << "  R         restore the paper-inspired defaults\n"
             << "  D         toggle relativistic Doppler beaming\n"
             << "  F         toggle the 15 FPS desktop-friendly cap\n"
+            << "  F1        show/hide the parameter menu\n"
             << "  Arrows    move the lens framing (horizontal/vertical)\n"
             << "  [ / ]     decrease/increase dimensionless spin\n"
             << "  - / =     decrease/increase exposure\n";

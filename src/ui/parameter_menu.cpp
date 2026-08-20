@@ -1,0 +1,295 @@
+#include "src/ui/parameter_menu.hpp"
+
+#include "src/app/scene_controller.hpp"
+
+#include <GLFW/glfw3.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
+
+#include <algorithm>
+#include <cmath>
+#include <iostream>
+#include <stdexcept>
+
+namespace gargantua::ui {
+namespace {
+
+void reportVulkanResult(VkResult result) {
+  if (result < 0) {
+    std::cerr << "Dear ImGui Vulkan error: " << result << '\n';
+  }
+}
+
+void helpMarker(const char *text) {
+  ImGui::SameLine();
+  ImGui::TextDisabled("(?)");
+  if (ImGui::BeginItemTooltip()) {
+    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 24.0f);
+    ImGui::TextUnformatted(text);
+    ImGui::PopTextWrapPos();
+    ImGui::EndTooltip();
+  }
+}
+
+const char *qualityName(app::PreviewQuality quality) {
+  switch (quality) {
+  case app::PreviewQuality::Performance:
+    return "Performance";
+  case app::PreviewQuality::Balanced:
+    return "Balanced";
+  case app::PreviewQuality::High:
+    return "High detail";
+  }
+  return "Balanced";
+}
+
+} // namespace
+
+ParameterMenu::~ParameterMenu() { shutdown(); }
+
+void ParameterMenu::initialize(GLFWwindow *window, VkInstance instance,
+                               VkPhysicalDevice physicalDevice, VkDevice device,
+                               uint32_t queueFamily, VkQueue queue,
+                               VkRenderPass renderPass, uint32_t minImageCount,
+                               uint32_t imageCount) {
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  contextInitialized_ = true;
+  ImGuiIO &io = ImGui::GetIO();
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+  io.IniFilename = nullptr;
+  io.Fonts->AddFontDefaultVector();
+  applyStyle(window);
+
+  if (!ImGui_ImplGlfw_InitForVulkan(window, true)) {
+    throw std::runtime_error(
+        "Could not initialize the Dear ImGui GLFW backend");
+  }
+  glfwInitialized_ = true;
+  initializeVulkan(instance, physicalDevice, device, queueFamily, queue,
+                   renderPass, minImageCount, imageCount);
+}
+
+void ParameterMenu::initializeVulkan(VkInstance instance,
+                                     VkPhysicalDevice physicalDevice,
+                                     VkDevice device, uint32_t queueFamily,
+                                     VkQueue queue, VkRenderPass renderPass,
+                                     uint32_t minImageCount,
+                                     uint32_t imageCount) {
+  ImGui_ImplVulkan_InitInfo info{};
+  info.ApiVersion = VK_API_VERSION_1_0;
+  info.Instance = instance;
+  info.PhysicalDevice = physicalDevice;
+  info.Device = device;
+  info.QueueFamily = queueFamily;
+  info.Queue = queue;
+  info.DescriptorPoolSize = 32;
+  info.MinImageCount = std::max(minImageCount, 2u);
+  info.ImageCount = std::max(imageCount, info.MinImageCount);
+  info.PipelineInfoMain.RenderPass = renderPass;
+  info.PipelineInfoMain.Subpass = 0;
+  info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+  info.CheckVkResultFn = reportVulkanResult;
+  if (!ImGui_ImplVulkan_Init(&info)) {
+    throw std::runtime_error(
+        "Could not initialize the Dear ImGui Vulkan backend");
+  }
+  vulkanInitialized_ = true;
+}
+
+void ParameterMenu::applyStyle(GLFWwindow *window) {
+  float xScale = 1.0f;
+  float yScale = 1.0f;
+  glfwGetWindowContentScale(window, &xScale, &yScale);
+  const float scale = std::clamp(std::max(xScale, yScale), 1.0f, 2.0f);
+
+  ImGui::StyleColorsDark();
+  ImGuiStyle &style = ImGui::GetStyle();
+  style.ScaleAllSizes(scale);
+  style.FontScaleDpi = scale;
+  style.WindowRounding = 12.0f * scale;
+  style.ChildRounding = 8.0f * scale;
+  style.FrameRounding = 6.0f * scale;
+  style.GrabRounding = 6.0f * scale;
+  style.WindowBorderSize = 1.0f;
+  style.FrameBorderSize = 0.0f;
+  style.WindowPadding = ImVec2(14.0f * scale, 13.0f * scale);
+  style.ItemSpacing = ImVec2(9.0f * scale, 7.0f * scale);
+
+  ImVec4 *colors = style.Colors;
+  colors[ImGuiCol_WindowBg] = ImVec4(0.025f, 0.031f, 0.040f, 0.94f);
+  colors[ImGuiCol_Border] = ImVec4(0.55f, 0.34f, 0.30f, 0.55f);
+  colors[ImGuiCol_TitleBg] = ImVec4(0.08f, 0.07f, 0.09f, 0.98f);
+  colors[ImGuiCol_TitleBgActive] = ImVec4(0.35f, 0.18f, 0.18f, 0.98f);
+  colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.08f, 0.07f, 0.09f, 0.90f);
+  colors[ImGuiCol_Header] = ImVec4(0.38f, 0.18f, 0.16f, 0.72f);
+  colors[ImGuiCol_HeaderHovered] = ImVec4(0.60f, 0.30f, 0.27f, 0.82f);
+  colors[ImGuiCol_HeaderActive] = ImVec4(0.72f, 0.39f, 0.34f, 0.90f);
+  colors[ImGuiCol_FrameBg] = ImVec4(0.10f, 0.11f, 0.14f, 0.94f);
+  colors[ImGuiCol_FrameBgHovered] = ImVec4(0.22f, 0.15f, 0.16f, 0.94f);
+  colors[ImGuiCol_FrameBgActive] = ImVec4(0.32f, 0.19f, 0.19f, 0.96f);
+  colors[ImGuiCol_SliderGrab] = ImVec4(0.80f, 0.51f, 0.45f, 1.0f);
+  colors[ImGuiCol_SliderGrabActive] = ImVec4(0.98f, 0.72f, 0.66f, 1.0f);
+  colors[ImGuiCol_CheckMark] = ImVec4(0.98f, 0.69f, 0.63f, 1.0f);
+  colors[ImGuiCol_Button] = ImVec4(0.43f, 0.22f, 0.20f, 0.90f);
+  colors[ImGuiCol_ButtonHovered] = ImVec4(0.65f, 0.34f, 0.30f, 1.0f);
+  colors[ImGuiCol_ButtonActive] = ImVec4(0.78f, 0.43f, 0.38f, 1.0f);
+}
+
+void ParameterMenu::beginFrame(app::SceneController &scene,
+                               const std::string &gpuName) {
+  ImGui_ImplVulkan_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+  if (visible_) {
+    draw(scene, gpuName);
+  }
+  ImGui::Render();
+}
+
+void ParameterMenu::draw(app::SceneController &scene,
+                         const std::string &gpuName) {
+  ImGuiIO &io = ImGui::GetIO();
+  const ImGuiViewport *viewport = ImGui::GetMainViewport();
+  ImGui::SetNextWindowPos(
+      ImVec2(viewport->WorkPos.x + 14.0f, viewport->WorkPos.y + 14.0f),
+      ImGuiCond_Always);
+  ImGui::SetNextWindowSize(ImVec2(355.0f, 0.0f), ImGuiCond_FirstUseEver);
+  const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse |
+                                 ImGuiWindowFlags_AlwaysAutoResize |
+                                 ImGuiWindowFlags_NoSavedSettings;
+  if (!ImGui::Begin("Gargantua controls", &visible_, flags)) {
+    ImGui::End();
+    return;
+  }
+
+  ImGui::TextColored(ImVec4(0.95f, 0.72f, 0.67f, 1.0f),
+                     "Kerr spacetime  /  Figure 15(a)");
+  ImGui::TextDisabled("F1 hides this panel");
+  ImGui::Separator();
+
+  RenderParameters &parameters = scene.parameters();
+  if (ImGui::CollapsingHeader("Camera & lens",
+                              ImGuiTreeNodeFlags_DefaultOpen)) {
+    ImGui::SliderFloat("Observer radius", &parameters.camera.radius, 20.0f,
+                       150.0f, "%.1f M");
+    helpMarker("Boyer-Lindquist radius of the stationary FIDO observer.");
+    ImGui::SliderFloat("Inclination", &parameters.camera.inclinationDegrees,
+                       5.0f, 175.0f, "%.2f deg");
+    ImGui::SliderFloat("Vertical field of view",
+                       &parameters.camera.verticalFovDegrees, 5.0f, 60.0f,
+                       "%.1f deg");
+    ImGui::SliderFloat("Horizontal framing", &parameters.camera.horizontalShift,
+                       -1.0f, 1.0f, "%+.3f");
+    ImGui::SliderFloat("Vertical framing", &parameters.options.verticalShift,
+                       -0.8f, 0.8f, "%+.3f");
+  }
+
+  if (ImGui::CollapsingHeader("Black hole & disk")) {
+    ImGui::SliderFloat("Dimensionless spin", &parameters.blackHole.spin,
+                       -0.998f, 0.998f, "%.3f");
+    helpMarker("a/M. Positive values rotate with the procedural disk.");
+    const float horizon =
+        1.0f + std::sqrt(std::max(1.0f - parameters.blackHole.spin *
+                                             parameters.blackHole.spin,
+                                  0.0f));
+    const float maximumInner =
+        std::max(parameters.blackHole.diskOuterRadius - 0.1f, horizon * 1.051f);
+    parameters.blackHole.diskInnerRadius = std::clamp(
+        parameters.blackHole.diskInnerRadius, horizon * 1.051f, maximumInner);
+    ImGui::SliderFloat("Disk inner radius",
+                       &parameters.blackHole.diskInnerRadius, horizon * 1.051f,
+                       maximumInner, "%.2f M");
+    parameters.blackHole.diskOuterRadius =
+        std::max(parameters.blackHole.diskOuterRadius,
+                 parameters.blackHole.diskInnerRadius + 0.1f);
+    ImGui::SliderFloat(
+        "Disk outer radius", &parameters.blackHole.diskOuterRadius,
+        parameters.blackHole.diskInnerRadius + 0.1f, 45.0f, "%.2f M");
+    ImGui::SliderFloat("Source temperature",
+                       &parameters.blackHole.diskTemperatureKelvin, 1800.0f,
+                       12000.0f, "%.0f K");
+    helpMarker("Used by the optional frequency-shift colour approximation.");
+  }
+
+  if (ImGui::CollapsingHeader("Appearance")) {
+    ImGui::SliderFloat("Exposure", &parameters.exposure, 0.05f, 3.0f, "%.2f",
+                       ImGuiSliderFlags_Logarithmic);
+    bool shifts = parameters.options.frequencyShiftsEnabled > 0.5f;
+    if (ImGui::Checkbox("Relativistic colour and beaming", &shifts)) {
+      parameters.options.frequencyShiftsEnabled = shifts ? 1.0f : 0.0f;
+    }
+    helpMarker("Applies the disk frequency shift and g cubed intensity term. "
+               "The movie-style preset leaves this off.");
+  }
+
+  if (ImGui::CollapsingHeader("Performance")) {
+    app::PreviewQuality quality = scene.previewQuality();
+    if (ImGui::BeginCombo("Ray integration", qualityName(quality))) {
+      for (const app::PreviewQuality candidate :
+           {app::PreviewQuality::Performance, app::PreviewQuality::Balanced,
+            app::PreviewQuality::High}) {
+        const bool selected = candidate == quality;
+        if (ImGui::Selectable(qualityName(candidate), selected)) {
+          scene.setPreviewQuality(candidate);
+        }
+        if (selected) {
+          ImGui::SetItemDefaultFocus();
+        }
+      }
+      ImGui::EndCombo();
+    }
+    helpMarker("Rebuilds only the ray pipeline. Performance uses fewer, larger "
+               "RK4 steps; high detail is intended for inspection.");
+    bool frameLimit = scene.frameLimitEnabled();
+    if (ImGui::Checkbox("15 FPS laptop cap", &frameLimit)) {
+      scene.setFrameLimitEnabled(frameLimit);
+    }
+    bool paused = scene.paused();
+    if (ImGui::Checkbox("Pause disk animation", &paused)) {
+      scene.setPaused(paused);
+    }
+  }
+
+  if (ImGui::Button("Restore Figure 15(a) preset", ImVec2(-1.0f, 0.0f))) {
+    scene.resetToFigure15a();
+  }
+
+  ImGui::Separator();
+  ImGui::Text("%.1f FPS  /  %.2f ms", io.Framerate,
+              io.Framerate > 0.0f ? 1000.0f / io.Framerate : 0.0f);
+  ImGui::TextDisabled("GPU: %s", gpuName.c_str());
+  ImGui::End();
+}
+
+void ParameterMenu::record(VkCommandBuffer commandBuffer) const {
+  if (vulkanInitialized_) {
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+  }
+}
+
+bool ParameterMenu::wantsKeyboard() const {
+  return contextInitialized_ && ImGui::GetIO().WantCaptureKeyboard;
+}
+
+void ParameterMenu::shutdownVulkan() noexcept {
+  if (vulkanInitialized_) {
+    ImGui_ImplVulkan_Shutdown();
+    vulkanInitialized_ = false;
+  }
+}
+
+void ParameterMenu::shutdown() noexcept {
+  shutdownVulkan();
+  if (glfwInitialized_) {
+    ImGui_ImplGlfw_Shutdown();
+    glfwInitialized_ = false;
+  }
+  if (contextInitialized_) {
+    ImGui::DestroyContext();
+    contextInitialized_ = false;
+  }
+}
+
+} // namespace gargantua::ui

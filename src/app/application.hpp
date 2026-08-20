@@ -5,6 +5,7 @@
 #include "src/app/scene_controller.hpp"
 #include "src/rendering/fullscreen_pipeline.hpp"
 #include "src/rendering/vulkan_instance.hpp"
+#include "src/ui/parameter_menu.hpp"
 #include "tools/cpp/runfiles/runfiles.h"
 
 #include <array>
@@ -74,6 +75,7 @@ private:
   void createCommandBuffers();
   void createSyncObjects();
   void createSwapchainObjects();
+  void rebuildRayPipelineIfRequested();
   void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
   void drawFrame();
   void recreateSwapchain();
@@ -94,6 +96,7 @@ private:
   std::vector<VkImageView> swapchainImageViews_;
   VkFormat swapchainFormat_ = VK_FORMAT_UNDEFINED;
   VkExtent2D swapchainExtent_{};
+  uint32_t swapchainMinImageCount_ = 2;
   VkRenderPass renderPass_ = VK_NULL_HANDLE;
   rendering::FullscreenPipeline pipeline_;
   std::vector<VkFramebuffer> framebuffers_;
@@ -107,7 +110,9 @@ private:
   std::unique_ptr<bazel::tools::cpp::runfiles::Runfiles> runfiles_;
   std::string vertexShaderPath_;
   std::string fragmentShaderPath_;
+  std::string selectedDeviceName_;
   SceneController scene_;
+  ui::ParameterMenu menu_;
 };
 
 } // namespace gargantua::app

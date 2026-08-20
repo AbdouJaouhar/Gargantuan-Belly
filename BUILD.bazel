@@ -44,6 +44,17 @@ cc_library(
 )
 
 cc_library(
+    name = "parameter_menu",
+    srcs = ["src/ui/parameter_menu.cpp"],
+    hdrs = ["src/ui/parameter_menu.hpp"],
+    copts = COPTS,
+    deps = [
+        ":scene_controller",
+        "@imgui//:imgui",
+    ],
+)
+
+cc_library(
     name = "interactive_app",
     srcs = [
         "src/app/frame_renderer.cpp",
@@ -62,6 +73,7 @@ cc_library(
     linkopts = ["-lglfw"],
     deps = [
         ":render_settings",
+        ":parameter_menu",
         ":scene_controller",
         ":vulkan_rendering",
         "@bazel_tools//tools/cpp/runfiles",
@@ -122,6 +134,14 @@ cc_test(
 )
 
 cc_test(
+    name = "scene_controller_test",
+    srcs = ["tests/scene_controller_test.cpp"],
+    copts = COPTS,
+    size = "small",
+    deps = [":scene_controller"],
+)
+
+cc_test(
     name = "ppm_writer_test",
     srcs = ["tests/ppm_writer_test.cpp"],
     copts = COPTS,
@@ -146,6 +166,7 @@ test_suite(
     tests = [
         ":ppm_writer_test",
         ":render_settings_test",
+        ":scene_controller_test",
         ":shader_interface_test",
     ],
 )

@@ -39,6 +39,9 @@ void Application::run() {
   while (!glfwWindowShouldClose(window_)) {
     const auto frameStart = std::chrono::steady_clock::now();
     glfwPollEvents();
+    menu_.beginFrame(scene_, selectedDeviceName_);
+    scene_.updateWindowTitle(window_);
+    rebuildRayPipelineIfRequested();
     drawFrame();
     if (scene_.frameLimitEnabled()) {
       const auto elapsed = std::chrono::steady_clock::now() - frameStart;
@@ -76,6 +79,13 @@ void Application::keyCallback(GLFWwindow *window, int key, int, int action,
   auto *application =
       static_cast<Application *>(glfwGetWindowUserPointer(window));
   if (application != nullptr) {
+    if (key == GLFW_KEY_F1 && action == GLFW_PRESS) {
+      application->menu_.toggleVisible();
+      return;
+    }
+    if (application->menu_.wantsKeyboard() && key != GLFW_KEY_ESCAPE) {
+      return;
+    }
     application->scene_.handleKey(window, key, action);
   }
 }
@@ -132,11 +142,17 @@ void Application::initVulkan() {
   createSwapchainObjects();
   createCommandBuffers();
   createSyncObjects();
+  const QueueFamilies families = findQueueFamilies(physicalDevice_);
+  menu_.initialize(window_, instance_, physicalDevice_, device_,
+                   *families.graphics, graphicsQueue_, renderPass_,
+                   swapchainMinImageCount_,
+                   static_cast<uint32_t>(swapchainImages_.size()));
 }
 
 void Application::cleanup() noexcept {
   if (device_ != VK_NULL_HANDLE) {
     vkDeviceWaitIdle(device_);
+    menu_.shutdown();
     cleanupSwapchain();
     for (size_t index = 0; index < kFramesInFlight; ++index) {
       if (renderFinished_[index] != VK_NULL_HANDLE) {

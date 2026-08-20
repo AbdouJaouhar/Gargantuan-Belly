@@ -21,8 +21,18 @@ using vulkan::checkVk;
 using vulkan::throwVk;
 
 namespace {
-constexpr int32_t kPreviewSteps = 220;
-constexpr float kPreviewStepScale = 1.45f;
+gargantua::rendering::RayIntegrationQuality
+qualitySettings(PreviewQuality quality) {
+  switch (quality) {
+  case PreviewQuality::Performance:
+    return {140, 1.85f};
+  case PreviewQuality::Balanced:
+    return {220, 1.45f};
+  case PreviewQuality::High:
+    return {300, 1.12f};
+  }
+  return {220, 1.45f};
+}
 } // namespace
 
 VkSurfaceFormatKHR Application::chooseSurfaceFormat(
@@ -93,6 +103,7 @@ void Application::createSwapchain() {
   const VkExtent2D extent = chooseExtent(support.capabilities);
 
   uint32_t imageCount = support.capabilities.minImageCount + 1;
+  swapchainMinImageCount_ = std::max(support.capabilities.minImageCount, 2u);
   if (support.capabilities.maxImageCount > 0) {
     imageCount = std::min(imageCount, support.capabilities.maxImageCount);
   }
@@ -197,11 +208,20 @@ void Application::createRenderPass() {
 }
 
 void Application::createPipeline() {
-  const gargantua::rendering::RayIntegrationQuality previewQuality{
-      kPreviewSteps, kPreviewStepScale};
+  const gargantua::rendering::RayIntegrationQuality previewQuality =
+      qualitySettings(scene_.previewQuality());
   pipeline_ = gargantua::rendering::createFullscreenPipeline(
       device_, renderPass_, sizeof(RenderParameters), vertexShaderPath_,
       fragmentShaderPath_, previewQuality);
+}
+
+void Application::rebuildRayPipelineIfRequested() {
+  if (!scene_.consumePipelineRebuildRequest()) {
+    return;
+  }
+  checkVk(vkDeviceWaitIdle(device_), "vkDeviceWaitIdle(quality change)");
+  pipeline_.reset();
+  createPipeline();
 }
 
 void Application::createFramebuffers() {
@@ -244,8 +264,14 @@ void Application::recreateSwapchain() {
   }
 
   checkVk(vkDeviceWaitIdle(device_), "vkDeviceWaitIdle");
+  menu_.shutdownVulkan();
   cleanupSwapchain();
   createSwapchainObjects();
+  const QueueFamilies families = findQueueFamilies(physicalDevice_);
+  menu_.initializeVulkan(instance_, physicalDevice_, device_,
+                         *families.graphics, graphicsQueue_, renderPass_,
+                         swapchainMinImageCount_,
+                         static_cast<uint32_t>(swapchainImages_.size()));
   framebufferResized_ = false;
 }
 

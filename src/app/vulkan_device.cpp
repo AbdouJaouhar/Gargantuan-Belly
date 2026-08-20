@@ -152,7 +152,8 @@ void Application::pickPhysicalDevice() {
 
   VkPhysicalDeviceProperties selected{};
   vkGetPhysicalDeviceProperties(physicalDevice_, &selected);
-  std::cout << "Using Vulkan device: " << selected.deviceName << '\n';
+  selectedDeviceName_ = selected.deviceName;
+  std::cout << "Using Vulkan device: " << selectedDeviceName_ << '\n';
 }
 
 void Application::createLogicalDevice() {
