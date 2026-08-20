@@ -1,0 +1,10 @@
+build --color=yes
+build --curses=no
+build --show_progress_rate_limit=5
+
+test --test_output=errors
+
+# Hybrid-laptop preset. Use `bazel run --config=nvidia //:gargantua`.
+run:nvidia --run_env=__NV_PRIME_RENDER_OFFLOAD=1
+run:nvidia --run_env=__VK_LAYER_NV_optimus=NVIDIA_only
+run:nvidia --run_env=__GLX_VENDOR_LIBRARY_NAME=nvidia

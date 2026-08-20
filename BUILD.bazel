@@ -1,0 +1,151 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+COPTS = [
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Wconversion",
+    "-Wshadow",
+]
+
+cc_library(
+    name = "render_settings",
+    hdrs = ["src/rendering/render_settings.hpp"],
+    copts = COPTS,
+)
+
+cc_library(
+    name = "vulkan_rendering",
+    srcs = [
+        "src/rendering/fullscreen_pipeline.cpp",
+        "src/rendering/vulkan_instance.cpp",
+    ],
+    hdrs = [
+        "src/rendering/fullscreen_pipeline.hpp",
+        "src/rendering/vulkan_helpers.hpp",
+        "src/rendering/vulkan_instance.hpp",
+    ],
+    copts = COPTS,
+    linkopts = ["-lvulkan"],
+)
+
+cc_library(
+    name = "scene_controller",
+    srcs = ["src/app/scene_controller.cpp"],
+    hdrs = ["src/app/scene_controller.hpp"],
+    copts = COPTS,
+    linkopts = ["-lglfw"],
+    deps = [":render_settings"],
+)
+
+cc_library(
+    name = "interactive_app",
+    srcs = [
+        "src/app/frame_renderer.cpp",
+        "src/app/lifecycle.cpp",
+        "src/app/swapchain.cpp",
+        "src/app/vulkan_device.cpp",
+    ],
+    hdrs = [
+        "src/app/application.hpp",
+    ],
+    data = [
+        "//shaders:black_hole.frag.spv",
+        "//shaders:fullscreen.vert.spv",
+    ],
+    copts = COPTS,
+    linkopts = ["-lglfw"],
+    deps = [
+        ":render_settings",
+        ":scene_controller",
+        ":vulkan_rendering",
+        "@bazel_tools//tools/cpp/runfiles",
+    ],
+)
+
+cc_binary(
+    name = "gargantua",
+    srcs = ["src/app/main.cpp"],
+    copts = COPTS,
+    deps = [":interactive_app"],
+)
+
+cc_library(
+    name = "ppm_writer",
+    srcs = ["src/io/ppm_writer.cpp"],
+    hdrs = ["src/io/ppm_writer.hpp"],
+    copts = COPTS,
+)
+
+cc_library(
+    name = "offscreen_renderer",
+    srcs = [
+        "src/rendering/offscreen_cli.cpp",
+        "src/rendering/offscreen_device.cpp",
+        "src/rendering/offscreen_lifecycle.cpp",
+        "src/rendering/offscreen_targets.cpp",
+    ],
+    hdrs = [
+        "src/rendering/offscreen_renderer.hpp",
+    ],
+    data = [
+        "//shaders:black_hole.frag.spv",
+        "//shaders:fullscreen.vert.spv",
+    ],
+    copts = COPTS,
+    deps = [
+        ":ppm_writer",
+        ":render_settings",
+        ":vulkan_rendering",
+        "@bazel_tools//tools/cpp/runfiles",
+    ],
+)
+
+cc_binary(
+    name = "gargantua_headless",
+    srcs = ["src/tools/render_still.cpp"],
+    copts = COPTS,
+    deps = [":offscreen_renderer"],
+)
+
+cc_test(
+    name = "render_settings_test",
+    srcs = ["tests/render_settings_test.cpp"],
+    copts = COPTS,
+    size = "small",
+    deps = [":render_settings"],
+)
+
+cc_test(
+    name = "ppm_writer_test",
+    srcs = ["tests/ppm_writer_test.cpp"],
+    copts = COPTS,
+    size = "small",
+    deps = [":ppm_writer"],
+)
+
+cc_test(
+    name = "shader_interface_test",
+    srcs = ["tests/shader_interface_test.cpp"],
+    data = [
+        "src/rendering/render_settings.hpp",
+        "//shaders:render_parameters.glsl",
+    ],
+    copts = COPTS,
+    size = "small",
+    deps = ["@bazel_tools//tools/cpp/runfiles"],
+)
+
+test_suite(
+    name = "tests",
+    tests = [
+        ":ppm_writer_test",
+        ":render_settings_test",
+        ":shader_interface_test",
+    ],
+)

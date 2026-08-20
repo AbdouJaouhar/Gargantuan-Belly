@@ -1,0 +1,9 @@
+/bazel-bin
+/bazel-out
+/bazel-testlogs
+/bazel-blackhole
+
+# Local renders and temporary profiling output.
+/*.ppm
+/gargantua*.png
+/*.trace

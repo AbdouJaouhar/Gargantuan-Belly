@@ -1,0 +1,19 @@
+package(default_visibility = ["//visibility:public"])
+
+genrule(
+    name = "fullscreen_vert_spv",
+    srcs = ["fullscreen.vert"],
+    outs = ["fullscreen.vert.spv"],
+    cmd = "glslc -O $(location fullscreen.vert) -o $@",
+)
+
+genrule(
+    name = "black_hole_frag_spv",
+    srcs = ["black_hole.frag"] + glob([
+        "*.glsl",
+        "appearance/*.glsl",
+        "physics/*.glsl",
+    ]),
+    outs = ["black_hole.frag.spv"],
+    cmd = "glslc -O $(location black_hole.frag) -o $@",
+)
