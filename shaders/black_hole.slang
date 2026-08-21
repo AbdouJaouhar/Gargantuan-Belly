@@ -26,7 +26,8 @@ struct RenderOptions
 {
     float verticalShift;
     float frequencyShiftsEnabled;
-    float2 padding;
+    float cameraRollDegrees;
+    float padding;
 }
 
 struct RenderParameters
@@ -315,6 +316,12 @@ KerrCameraRay makeCameraRay(float2 pixel, float spin)
     screen = float2(
         (screen.x - pc.camera.horizontalShift) * aspect,
         screen.y - pc.options.verticalShift);
+    float roll = radians(pc.options.cameraRollDegrees);
+    float sineRoll = sin(roll);
+    float cosineRoll = cos(roll);
+    screen = float2(
+        cosineRoll * screen.x - sineRoll * screen.y,
+        sineRoll * screen.x + cosineRoll * screen.y);
     float tangentHalfFov = tan(0.5 * radians(
         clamp(pc.camera.verticalFovDegrees, 5.0, 100.0)));
     float3 cameraDirection = normalize(float3(

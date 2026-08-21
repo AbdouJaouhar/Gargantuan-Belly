@@ -21,6 +21,7 @@ int main() {
       !close(scene.disk.outerRadius, 18.7f) ||
       !close(scene.disk.temperatureKelvin, 4500.0f) ||
       !close(scene.camera.verticalShift, 0.045f) ||
+      !close(scene.camera.rollDegrees, 0.0f) ||
       !close(scene.appearance.exposure, 1.15f) ||
       scene.appearance.frequencyShiftsEnabled) {
     return EXIT_FAILURE;

@@ -24,7 +24,8 @@ struct GpuBlackHoleParameters {
 struct GpuRenderOptions {
   float verticalShift = 0.0f;
   float frequencyShiftsEnabled = 0.0f;
-  float padding[2]{};
+  float cameraRollDegrees = 0.0f;
+  float padding = 0.0f;
 };
 
 // CPU mirror of RenderParameters in shaders/black_hole.slang. Slang reflection

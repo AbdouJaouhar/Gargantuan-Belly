@@ -20,6 +20,7 @@ GpuRenderParameters packGpuParameters(const scene::Scene &scene,
   parameters.options.verticalShift = scene.camera.verticalShift;
   parameters.options.frequencyShiftsEnabled =
       scene.appearance.frequencyShiftsEnabled ? 1.0f : 0.0f;
+  parameters.options.cameraRollDegrees = scene.camera.rollDegrees;
   return parameters;
 }
 

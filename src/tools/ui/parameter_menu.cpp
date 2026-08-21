@@ -184,6 +184,9 @@ void ParameterMenu::draw(app::SceneController &scene,
                        -1.0f, 1.0f, "%+.3f");
     ImGui::SliderFloat("Vertical framing", &model.camera.verticalShift, -0.8f,
                        0.8f, "%+.3f");
+    ImGui::SliderFloat("Camera roll", &model.camera.rollDegrees, -180.0f,
+                       180.0f, "%+.1f deg", ImGuiSliderFlags_AlwaysClamp);
+    helpMarker("Rotates the view around the camera's forward axis.");
   }
 
   if (ImGui::CollapsingHeader("Black hole & disk")) {

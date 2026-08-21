@@ -15,6 +15,7 @@ bool close(float actual, float expected) {
 int main() {
   gargantua::scene::Scene scene = gargantua::scene::figure15aScene();
   scene.camera.horizontalShift = -0.25f;
+  scene.camera.rollDegrees = 32.5f;
   scene.appearance.frequencyShiftsEnabled = true;
 
   const gargantua::rendering::GpuRenderParameters parameters =
@@ -31,6 +32,7 @@ int main() {
       !close(parameters.blackHole.diskOuterRadius, 18.7f) ||
       !close(parameters.blackHole.diskTemperatureKelvin, 4500.0f) ||
       !close(parameters.options.verticalShift, 0.045f) ||
+      !close(parameters.options.cameraRollDegrees, 32.5f) ||
       !close(parameters.options.frequencyShiftsEnabled, 1.0f)) {
     return EXIT_FAILURE;
   }

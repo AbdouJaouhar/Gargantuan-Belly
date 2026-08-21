@@ -70,7 +70,8 @@ int main(int argc, char **argv) {
         struct GpuRenderOptions {
           float verticalShift = 0.0f;
           float frequencyShiftsEnabled = 0.0f;
-          float padding[2]{};
+          float cameraRollDegrees = 0.0f;
+          float padding = 0.0f;
         };
       )",
       R"(
@@ -111,7 +112,8 @@ int main(int argc, char **argv) {
         struct RenderOptions {
           float verticalShift;
           float frequencyShiftsEnabled;
-          float2 padding;
+          float cameraRollDegrees;
+          float padding;
         }
       )",
       R"(

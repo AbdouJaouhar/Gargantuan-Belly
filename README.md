@@ -154,7 +154,7 @@ the canonical physics modules or active fragment pipeline.
 | `-` / `=` | Decrease or increase exposure |
 | `Esc` | Quit |
 
-The in-window menu exposes camera geometry, spin, disk dimensions and
+The in-window menu exposes camera geometry and roll, spin, disk dimensions and
 temperature, exposure, relativistic shifts, animation state, an adjustable
 5–60 FPS limit, and three ray-integration quality presets. The title mirrors a
 frequently changed subset: exposure, spin, framing shift, frequency-shift

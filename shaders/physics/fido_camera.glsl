@@ -6,8 +6,13 @@
 vec2 camera_screen_from_pixel(vec2 pixel) {
     vec2 screen = pixel * 2.0 - 1.0;
     float aspect = pc.resolution.x / max(pc.resolution.y, 1.0);
-    return vec2((screen.x - pc.camera.horizontal_shift) * aspect,
-                screen.y - pc.options.vertical_shift);
+    screen = vec2((screen.x - pc.camera.horizontal_shift) * aspect,
+                  screen.y - pc.options.vertical_shift);
+    float roll = radians(pc.options.camera_roll_degrees);
+    float sine_roll = sin(roll);
+    float cosine_roll = cos(roll);
+    return vec2(cosine_roll * screen.x - sine_roll * screen.y,
+                sine_roll * screen.x + cosine_roll * screen.y);
 }
 
 CameraRay make_camera_ray(vec2 pixel) {

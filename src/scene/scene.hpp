@@ -16,6 +16,7 @@ struct Camera {
   float verticalFovDegrees = 0.0f;
   float horizontalShift = 0.0f;
   float verticalShift = 0.0f;
+  float rollDegrees = 0.0f;
 };
 
 struct KerrSpacetime {

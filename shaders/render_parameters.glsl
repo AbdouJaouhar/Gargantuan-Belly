@@ -21,7 +21,8 @@ struct BlackHoleParameters {
 struct RenderOptions {
     float vertical_shift;
     float frequency_shifts_enabled;
-    vec2 padding;
+    float camera_roll_degrees;
+    float padding;
 };
 
 layout(push_constant) uniform RenderParameters {
