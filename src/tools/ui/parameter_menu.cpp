@@ -138,14 +138,64 @@ void ParameterMenu::applyStyle(GLFWwindow *window) {
 }
 
 void ParameterMenu::beginFrame(app::SceneController &scene,
-                               const std::string &gpuName) {
+                               const std::string &gpuName,
+                               const UtilizationStats &utilization) {
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
   if (visible_) {
     draw(scene, gpuName);
   }
+  if (showUtilization_) {
+    drawUtilization(utilization);
+  }
   ImGui::Render();
+}
+
+void ParameterMenu::drawUtilization(const UtilizationStats &utilization) {
+  constexpr double kBytesPerMebibyte = 1024.0 * 1024.0;
+  const ImGuiViewport *viewport = ImGui::GetMainViewport();
+  const ImVec2 padding(14.0f, 14.0f);
+  ImGui::SetNextWindowPos(
+      ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - padding.x,
+             viewport->WorkPos.y + viewport->WorkSize.y - padding.y),
+      ImGuiCond_Always, ImVec2(1.0f, 1.0f));
+  ImGui::SetNextWindowBgAlpha(0.72f);
+  const ImGuiWindowFlags flags =
+      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+      ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoInputs;
+  if (ImGui::Begin("##utilization_overlay", nullptr, flags)) {
+    ImGui::TextColored(ImVec4(0.95f, 0.72f, 0.67f, 1.0f), "CPU");
+    ImGui::SameLine();
+    ImGui::Text("%5.1f%%", utilization.cpuPercent);
+    if (utilization.cpuMemoryAvailable) {
+      ImGui::Text("RAM  %6.1f MiB", static_cast<double>(
+                                      utilization.cpuResidentBytes) /
+                                      kBytesPerMebibyte);
+      ImGui::Text("Threads  %u", utilization.cpuThreadCount);
+    } else {
+      ImGui::TextDisabled("RAM / threads  n/a");
+    }
+    ImGui::Spacing();
+    ImGui::TextColored(ImVec4(0.95f, 0.72f, 0.67f, 1.0f), "GPU");
+    if (utilization.gpuAvailable) {
+      ImGui::SameLine();
+      ImGui::Text("%5.1f%%", utilization.gpuPercent);
+      ImGui::Text("Frame  %6.2f ms", utilization.gpuFrameMilliseconds);
+    } else {
+      ImGui::SameLine();
+      ImGui::TextDisabled("timing n/a");
+    }
+    if (utilization.gpuMemoryAvailable) {
+      ImGui::Text("Memory %6.1f MiB", static_cast<double>(
+                                       utilization.gpuMemoryBytes) /
+                                       kBytesPerMebibyte);
+    } else {
+      ImGui::TextDisabled("Memory  n/a");
+    }
+  }
+  ImGui::End();
 }
 
 void ParameterMenu::draw(app::SceneController &scene,
@@ -253,6 +303,11 @@ void ParameterMenu::draw(app::SceneController &scene,
     if (ImGui::Checkbox("Pause disk animation", &paused)) {
       scene.setPaused(paused);
     }
+    ImGui::Checkbox("Show CPU/GPU utilization", &showUtilization_);
+    helpMarker("Shows this process's CPU load, resident RAM, threads, Vulkan "
+               "command time, and Vulkan device-memory allocations. CPU load "
+               "is normalized across logical cores. GPU memory requires "
+               "VK_EXT_device_memory_report support. Shortcut: U.");
   }
 
   if (ImGui::Button("Restore Figure 15(a) preset", ImVec2(-1.0f, 0.0f))) {

@@ -9,8 +9,11 @@
 #include "tools/cpp/runfiles/runfiles.h"
 
 #include <array>
+#include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <ctime>
 #include <memory>
 #include <optional>
 #include <string>
@@ -48,6 +51,8 @@ private:
                                       int height);
   static void keyCallback(GLFWwindow *window, int key, int scancode, int action,
                           int modifiers);
+  static VKAPI_ATTR void VKAPI_CALL deviceMemoryReportCallback(
+      const VkDeviceMemoryReportCallbackDataEXT *callbackData, void *userData);
 
   void resolveRunfiles(const char *executablePath);
   void initWindow();
@@ -74,10 +79,13 @@ private:
   void createCommandPool();
   void createCommandBuffers();
   void createSyncObjects();
+  void createPerformanceQueries();
   void createSwapchainObjects();
   void rebuildRayPipelineIfRequested();
   void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
   void drawFrame();
+  void sampleCpuUtilization();
+  void collectGpuUtilization(size_t frameIndex);
   void recreateSwapchain();
   void cleanupSwapchain() noexcept;
   void cleanup() noexcept;
@@ -105,6 +113,16 @@ private:
   std::array<VkSemaphore, kFramesInFlight> imageAvailable_{};
   std::array<VkSemaphore, kFramesInFlight> renderFinished_{};
   std::array<VkFence, kFramesInFlight> inFlight_{};
+  VkQueryPool timestampQueryPool_ = VK_NULL_HANDLE;
+  uint32_t timestampValidBits_ = 0;
+  float timestampPeriodNanoseconds_ = 0.0f;
+  std::array<bool, kFramesInFlight> timestampPending_{};
+  std::array<double, kFramesInFlight> gpuFrameIntervals_{};
+  std::chrono::steady_clock::time_point lastGpuSubmission_{};
+  std::chrono::steady_clock::time_point lastCpuSample_{};
+  std::clock_t lastProcessCpuTime_ = 0;
+  std::atomic<uint64_t> gpuMemoryBytes_{0};
+  ui::UtilizationStats utilization_{};
   std::vector<VkFence> imagesInFlight_;
   size_t currentFrame_ = 0;
   std::unique_ptr<bazel::tools::cpp::runfiles::Runfiles> runfiles_;

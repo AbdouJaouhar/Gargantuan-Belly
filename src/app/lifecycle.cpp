@@ -37,7 +37,8 @@ void Application::run() {
   while (!glfwWindowShouldClose(window_)) {
     const auto frameStart = std::chrono::steady_clock::now();
     glfwPollEvents();
-    menu_.beginFrame(scene_, selectedDeviceName_);
+    sampleCpuUtilization();
+    menu_.beginFrame(scene_, selectedDeviceName_, utilization_);
     scene_.updateWindowTitle(window_);
     rebuildRayPipelineIfRequested();
     drawFrame();
@@ -78,6 +79,10 @@ void Application::keyCallback(GLFWwindow *window, int key, int, int action,
   if (application != nullptr) {
     if (key == GLFW_KEY_F1 && action == GLFW_PRESS) {
       application->menu_.toggleVisible();
+      return;
+    }
+    if (key == GLFW_KEY_U && action == GLFW_PRESS) {
+      application->menu_.toggleUtilization();
       return;
     }
     if (application->menu_.wantsKeyboard() && key != GLFW_KEY_ESCAPE) {
@@ -136,6 +141,7 @@ void Application::initVulkan() {
   pickPhysicalDevice();
   createLogicalDevice();
   createCommandPool();
+  createPerformanceQueries();
   createSwapchainObjects();
   createCommandBuffers();
   createSyncObjects();
@@ -151,6 +157,10 @@ void Application::cleanup() noexcept {
     vkDeviceWaitIdle(device_);
     menu_.shutdown();
     cleanupSwapchain();
+    if (timestampQueryPool_ != VK_NULL_HANDLE) {
+      vkDestroyQueryPool(device_, timestampQueryPool_, nullptr);
+      timestampQueryPool_ = VK_NULL_HANDLE;
+    }
     for (size_t index = 0; index < kFramesInFlight; ++index) {
       if (renderFinished_[index] != VK_NULL_HANDLE) {
         vkDestroySemaphore(device_, renderFinished_[index], nullptr);

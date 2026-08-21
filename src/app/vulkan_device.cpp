@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstring>
 #include <iostream>
@@ -184,20 +185,89 @@ void Application::createLogicalDevice() {
     queueInfos.push_back(queueInfo);
   }
 
-  const char *extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+  uint32_t extensionCount = 0;
+  checkVk(vkEnumerateDeviceExtensionProperties(
+              physicalDevice_, nullptr, &extensionCount, nullptr),
+          "vkEnumerateDeviceExtensionProperties(memory report)");
+  std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+  checkVk(vkEnumerateDeviceExtensionProperties(
+              physicalDevice_, nullptr, &extensionCount,
+              availableExtensions.data()),
+          "vkEnumerateDeviceExtensionProperties(memory report)");
+  const bool hasMemoryReportExtension = std::any_of(
+      availableExtensions.begin(), availableExtensions.end(),
+      [](const VkExtensionProperties &extension) {
+        return std::strcmp(extension.extensionName,
+                           VK_EXT_DEVICE_MEMORY_REPORT_EXTENSION_NAME) == 0;
+      });
+
+  VkPhysicalDeviceDeviceMemoryReportFeaturesEXT memoryReportFeature{};
+  memoryReportFeature.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEVICE_MEMORY_REPORT_FEATURES_EXT;
+  if (hasMemoryReportExtension) {
+    VkPhysicalDeviceFeatures2 features{};
+    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features.pNext = &memoryReportFeature;
+    vkGetPhysicalDeviceFeatures2(physicalDevice_, &features);
+  }
+
+  VkDeviceDeviceMemoryReportCreateInfoEXT memoryReportInfo{};
+  memoryReportInfo.sType =
+      VK_STRUCTURE_TYPE_DEVICE_DEVICE_MEMORY_REPORT_CREATE_INFO_EXT;
+  memoryReportInfo.pfnUserCallback = deviceMemoryReportCallback;
+  memoryReportInfo.pUserData = this;
+  const bool enableMemoryReport =
+      hasMemoryReportExtension &&
+      memoryReportFeature.deviceMemoryReport == VK_TRUE;
+  std::vector<const char *> extensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+  if (enableMemoryReport) {
+    extensions.push_back(VK_EXT_DEVICE_MEMORY_REPORT_EXTENSION_NAME);
+    memoryReportFeature.deviceMemoryReport = VK_TRUE;
+    memoryReportFeature.pNext = &memoryReportInfo;
+    utilization_.gpuMemoryAvailable = true;
+  }
+
   VkPhysicalDeviceFeatures features{};
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size());
   createInfo.pQueueCreateInfos = queueInfos.data();
-  createInfo.enabledExtensionCount = 1;
-  createInfo.ppEnabledExtensionNames = extensions;
+  createInfo.pNext = enableMemoryReport ? &memoryReportFeature : nullptr;
+  createInfo.enabledExtensionCount =
+      static_cast<uint32_t>(extensions.size());
+  createInfo.ppEnabledExtensionNames = extensions.data();
   createInfo.pEnabledFeatures = &features;
   checkVk(vkCreateDevice(physicalDevice_, &createInfo, nullptr, &device_),
           "vkCreateDevice");
 
   vkGetDeviceQueue(device_, *families.graphics, 0, &graphicsQueue_);
   vkGetDeviceQueue(device_, *families.present, 0, &presentQueue_);
+}
+
+VKAPI_ATTR void VKAPI_CALL Application::deviceMemoryReportCallback(
+    const VkDeviceMemoryReportCallbackDataEXT *callbackData, void *userData) {
+  if (callbackData == nullptr || userData == nullptr) {
+    return;
+  }
+  auto *application = static_cast<Application *>(userData);
+  if (callbackData->type == VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATE_EXT ||
+      callbackData->type == VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_IMPORT_EXT) {
+    application->gpuMemoryBytes_.fetch_add(callbackData->size,
+                                           std::memory_order_relaxed);
+    return;
+  }
+  if (callbackData->type != VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_FREE_EXT &&
+      callbackData->type != VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_UNIMPORT_EXT) {
+    return;
+  }
+
+  uint64_t current =
+      application->gpuMemoryBytes_.load(std::memory_order_relaxed);
+  const uint64_t released = callbackData->size;
+  while (!application->gpuMemoryBytes_.compare_exchange_weak(
+      current, current > released ? current - released : 0,
+      std::memory_order_relaxed, std::memory_order_relaxed)) {
+  }
 }
 
 } // namespace gargantua::app

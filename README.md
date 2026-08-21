@@ -149,6 +149,7 @@ the canonical physics modules or active fragment pipeline.
 | `D` | Toggle colour and `g^3` brightness shifts (roughly Figure 15(c)) |
 | `F` | Toggle the configured FPS cap |
 | `F1` | Show or hide the parameter menu |
+| `U` | Show or hide this process's CPU/GPU statistics overlay |
 | Arrow keys | Reframe the black hole in the virtual lens |
 | `[` / `]` | Decrease or increase `a/M` between -0.998 and 0.998 |
 | `-` / `=` | Decrease or increase exposure |

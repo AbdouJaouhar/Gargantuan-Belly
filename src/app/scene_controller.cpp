@@ -141,7 +141,7 @@ void SceneController::updateWindowTitle(GLFWwindow *window) const {
     title << "off";
   }
   title << (paused_ ? " | PAUSED" : "")
-        << " | Space/R/D/F, arrows, [/], -/=, Esc";
+        << " | Space/R/D/F/U, arrows, [/], -/=, Esc";
   glfwSetWindowTitle(window, title.str().c_str());
 }
 
@@ -153,6 +153,7 @@ void SceneController::printHelp() {
             << "  D         toggle relativistic Doppler beaming\n"
             << "  F         toggle the configured FPS cap\n"
             << "  F1        show/hide the parameter menu\n"
+            << "  U         show/hide CPU and GPU utilization\n"
             << "  Arrows    move the lens framing (horizontal/vertical)\n"
             << "  [ / ]     decrease/increase dimensionless spin\n"
             << "  - / =     decrease/increase exposure\n";
