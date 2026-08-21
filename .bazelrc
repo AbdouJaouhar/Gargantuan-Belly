@@ -8,3 +8,4 @@ test --test_output=errors
 run:nvidia --run_env=__NV_PRIME_RENDER_OFFLOAD=1
 run:nvidia --run_env=__VK_LAYER_NV_optimus=NVIDIA_only
 run:nvidia --run_env=__GLX_VENDOR_LIBRARY_NAME=nvidia
+run:nvidia --run_env=VK_LOADER_DRIVERS_SELECT=*nvidia*

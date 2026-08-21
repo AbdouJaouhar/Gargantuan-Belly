@@ -1,6 +1,6 @@
 #pragma once
 
-#include "src/rendering/render_settings.hpp"
+#include "src/scene/scene.hpp"
 
 #include <chrono>
 
@@ -18,8 +18,8 @@ class SceneController {
 public:
   SceneController();
 
-  RenderParameters &parameters() { return parameters_; }
-  const RenderParameters &parameters() const { return parameters_; }
+  ::gargantua::scene::Scene &scene() { return scene_; }
+  const ::gargantua::scene::Scene &scene() const { return scene_; }
   bool frameLimitEnabled() const { return frameLimitEnabled_; }
   int frameLimitFps() const { return frameLimitFps_; }
   bool paused() const { return paused_; }
@@ -39,7 +39,7 @@ public:
 private:
   void togglePaused();
 
-  RenderParameters parameters_{};
+  ::gargantua::scene::Scene scene_{};
   bool paused_ = false;
   bool frameLimitEnabled_ = true;
   int frameLimitFps_ = 15;

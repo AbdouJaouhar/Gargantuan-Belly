@@ -1,7 +1,9 @@
 #include "src/rendering/offscreen_renderer.hpp"
 
-#include "src/io/ppm_writer.hpp"
+#include "src/io/high_precision_image_writer.hpp"
+#include "src/rendering/gpu_parameters.hpp"
 #include "src/rendering/vulkan_helpers.hpp"
+#include "src/scene/presets.hpp"
 
 #include <cstdint>
 #include <iostream>
@@ -32,12 +34,12 @@ OffscreenRenderer::OffscreenRenderer(const char *argv0, uint32_t outputWidth,
       width_(scaledDimension(outputWidth, supersample, "width")),
       height_(scaledDimension(outputHeight, supersample, "height")) {
   resolveRunfiles(argv0);
-  resetParameters();
+  resetScene();
 }
 
 OffscreenRenderer::~OffscreenRenderer() { cleanup(); }
 
-void OffscreenRenderer::renderToPpm(const std::string &outputPath) {
+void OffscreenRenderer::renderToImage(const std::string &outputPath) {
   createInstance();
   pickPhysicalDevice();
   createLogicalDevice();
@@ -51,7 +53,7 @@ void OffscreenRenderer::renderToPpm(const std::string &outputPath) {
   createFence();
   recordCommands();
   submitAndWait();
-  writePpm(outputPath);
+  writeImage(outputPath);
 }
 
 void OffscreenRenderer::resolveRunfiles(const char *argv0) {
@@ -71,12 +73,7 @@ void OffscreenRenderer::resolveRunfiles(const char *argv0) {
   }
 }
 
-void OffscreenRenderer::resetParameters() {
-  parameters_ = gargantua::figure15aParameters();
-  parameters_.resolution[0] = static_cast<float>(width_);
-  parameters_.resolution[1] = static_cast<float>(height_);
-  parameters_.time = 0.0f;
-}
+void OffscreenRenderer::resetScene() { scene_ = scene::figure15aScene(); }
 
 void OffscreenRenderer::recordCommands() {
   VkCommandBufferBeginInfo beginInfo{};
@@ -110,9 +107,11 @@ void OffscreenRenderer::recordCommands() {
   const VkRect2D scissor{{0, 0}, {width_, height_}};
   vkCmdSetScissor(commandBuffer_, 0, 1, &scissor);
 
+  const GpuRenderParameters parameters = packGpuParameters(
+      scene_, {static_cast<float>(width_), static_cast<float>(height_), 0.0f});
   vkCmdPushConstants(commandBuffer_, pipeline_.layout(),
-                     VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(RenderParameters),
-                     &parameters_);
+                     VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(parameters),
+                     &parameters);
   vkCmdDraw(commandBuffer_, 3, 1, 0, 0);
   vkCmdEndRenderPass(commandBuffer_);
 
@@ -158,7 +157,7 @@ void OffscreenRenderer::submitAndWait() {
           "vkWaitForFences");
 }
 
-void OffscreenRenderer::writePpm(const std::string &outputPath) {
+void OffscreenRenderer::writeImage(const std::string &outputPath) {
   void *mapped = nullptr;
   checkVk(vkMapMemory(device_, stagingMemory_, 0, VK_WHOLE_SIZE, 0, &mapped),
           "vkMapMemory");
@@ -169,8 +168,8 @@ void OffscreenRenderer::writePpm(const std::string &outputPath) {
     range.size = VK_WHOLE_SIZE;
     checkVk(vkInvalidateMappedMemoryRanges(device_, 1, &range),
             "vkInvalidateMappedMemoryRanges");
-    gargantua::io::writeSupersampledPpm(
-        outputPath, static_cast<const uint8_t *>(mapped), width_, height_,
+    gargantua::io::writeHighPrecisionImage(
+        outputPath, static_cast<const uint16_t *>(mapped), width_, height_,
         outputWidth_, outputHeight_, supersample_);
   } catch (...) {
     vkUnmapMemory(device_, stagingMemory_);

@@ -5,7 +5,7 @@
 #include "src/app/scene_controller.hpp"
 #include "src/rendering/fullscreen_pipeline.hpp"
 #include "src/rendering/vulkan_instance.hpp"
-#include "src/ui/parameter_menu.hpp"
+#include "src/tools/ui/parameter_menu.hpp"
 #include "tools/cpp/runfiles/runfiles.h"
 
 #include <array>

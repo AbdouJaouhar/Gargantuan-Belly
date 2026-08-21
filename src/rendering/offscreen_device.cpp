@@ -1,5 +1,6 @@
 #include "src/rendering/offscreen_renderer.hpp"
 
+#include "src/rendering/vulkan_device_policy.hpp"
 #include "src/rendering/vulkan_helpers.hpp"
 
 #include <array>
@@ -55,42 +56,52 @@ void OffscreenRenderer::pickPhysicalDevice() {
           "vkEnumeratePhysicalDevices");
 
   uint64_t bestScore = 0;
+  bool foundHardwareGpu = false;
   for (VkPhysicalDevice candidate : devices) {
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(candidate, &properties);
+    const std::optional<uint64_t> score = scoreNonCpuVulkanDevice(properties);
+    if (!score.has_value()) {
+      continue;
+    }
+    foundHardwareGpu = true;
     const std::optional<uint32_t> family = findGraphicsFamily(candidate);
     if (!family.has_value() || !supportsOutputFormat(candidate)) {
       continue;
     }
 
-    VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(candidate, &properties);
     if (width_ > properties.limits.maxImageDimension2D ||
         height_ > properties.limits.maxImageDimension2D ||
-        properties.limits.maxPushConstantsSize < sizeof(RenderParameters)) {
+        properties.limits.maxPushConstantsSize < sizeof(GpuRenderParameters)) {
       continue;
     }
 
-    uint64_t score = properties.limits.maxImageDimension2D;
-    if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-      score += 1'000'000;
-    }
-    if (physicalDevice_ == VK_NULL_HANDLE || score > bestScore) {
+    if (physicalDevice_ == VK_NULL_HANDLE || *score > bestScore) {
       physicalDevice_ = candidate;
       graphicsFamily_ = *family;
-      bestScore = score;
+      bestScore = *score;
     }
   }
 
   if (physicalDevice_ == VK_NULL_HANDLE) {
+    if (!foundHardwareGpu) {
+      throw std::runtime_error(
+          "No non-CPU Vulkan device was found. CPU Vulkan implementations "
+          "such as llvmpipe are intentionally disabled; install or enable "
+          "the vendor Vulkan driver (on NVIDIA Optimus, launch with "
+          "--config=nvidia)");
+    }
     throw std::runtime_error(
-        "No Vulkan graphics device supports the requested RGBA8 target and "
+        "No non-CPU Vulkan device supports the requested RGBA16F target and "
         "dimensions");
   }
 
   const uint64_t pixels = static_cast<uint64_t>(width_) * height_;
-  if (pixels > std::numeric_limits<VkDeviceSize>::max() / 4) {
+  constexpr VkDeviceSize kBytesPerPixel = 8;
+  if (pixels > std::numeric_limits<VkDeviceSize>::max() / kBytesPerPixel) {
     throw std::runtime_error("Requested image dimensions are too large");
   }
-  pixelByteCount_ = static_cast<VkDeviceSize>(pixels * 4);
+  pixelByteCount_ = static_cast<VkDeviceSize>(pixels) * kBytesPerPixel;
 
   VkPhysicalDeviceProperties selected{};
   vkGetPhysicalDeviceProperties(physicalDevice_, &selected);

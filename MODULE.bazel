@@ -4,6 +4,9 @@ module(
 )
 
 bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "eigen", version = "3.4.0.bcr.3")
+bazel_dep(name = "doctest", version = "2.5.2", dev_dependency = True)
 
 http_archive = use_repo_rule(
     "@bazel_tools//tools/build_defs/repo:http.bzl",
@@ -16,4 +19,26 @@ http_archive(
     sha256 = "af97ed649182c39314320514a672b82008ab462b9293fe23d37b30bfa5d05519",
     strip_prefix = "imgui-1.92.9",
     urls = ["https://github.com/ocornut/imgui/archive/refs/tags/v1.92.9.tar.gz"],
+)
+
+# Boost.Numeric.Odeint is not currently published as a standalone BCR module.
+# Pin the official, documentation-free Boost release and expose its headers
+# through the small Bazel shim in third_party/boost.BUILD.bazel.
+http_archive(
+    name = "boost_headers",
+    build_file = "//third_party:boost.BUILD.bazel",
+    sha256 = "e3140d87a2907fafa5599fd9d4fe9edee88ee1fbddbc7cd0efde9953e95ce30b",
+    strip_prefix = "boost_1_90_0",
+    urls = ["https://archives.boost.io/release/1.90.0/source-nodocs/boost_1_90_0.tar.bz2"],
+)
+
+# One source language now feeds both sides of the physics engine: Slang emits
+# SPIR-V for Vulkan and ordinary C++ for the host-side scientific harness.
+# The compiler is a pinned official binary release; it is a build tool, not a
+# runtime dependency of Gargantua.
+http_archive(
+    name = "slang_toolchain",
+    build_file = "//third_party:slang.BUILD.bazel",
+    sha256 = "b9c5e195ce9a7124147d47febe78b7f8c59c96829add50b0938bd04b8056fb88",
+    urls = ["https://github.com/shader-slang/slang/releases/download/v2026.16/slang-2026.16-linux-x86_64-glibc-2.27.tar.gz"],
 )

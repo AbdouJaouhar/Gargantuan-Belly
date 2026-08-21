@@ -1,0 +1,19 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Boost.Odeint is header-only. Keeping the archive as one external include tree
+# lets Boost's own headers resolve their component dependencies without copying
+# or reimplementing any numerical algorithms in this repository.
+cc_library(
+    name = "headers",
+    hdrs = glob([
+        "boost/**/*.h",
+        "boost/**/*.hpp",
+        "boost/**/*.inc",
+        "boost/**/*.ipp",
+    ]),
+    data = ["LICENSE_1_0.txt"],
+    defines = ["BOOST_ALL_NO_LIB"],
+    includes = ["."],
+)

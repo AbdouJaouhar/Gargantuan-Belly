@@ -1,5 +1,6 @@
 #include "src/app/application.hpp"
 
+#include "src/rendering/vulkan_device_policy.hpp"
 #include "src/rendering/vulkan_helpers.hpp"
 
 #include <GLFW/glfw3.h>
@@ -129,25 +130,36 @@ void Application::pickPhysicalDevice() {
           "vkEnumeratePhysicalDevices");
 
   uint64_t bestScore = 0;
+  bool foundHardwareGpu = false;
   for (VkPhysicalDevice device : devices) {
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(device, &properties);
+    const std::optional<uint64_t> score =
+        rendering::scoreNonCpuVulkanDevice(properties);
+    if (!score.has_value()) {
+      continue;
+    }
+    foundHardwareGpu = true;
     if (!isDeviceSuitable(device)) {
       continue;
     }
-    VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(device, &properties);
-    uint64_t score = properties.limits.maxImageDimension2D;
-    if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-      score += 1'000'000;
-    }
-    if (physicalDevice_ == VK_NULL_HANDLE || score > bestScore) {
+    if (physicalDevice_ == VK_NULL_HANDLE || *score > bestScore) {
       physicalDevice_ = device;
-      bestScore = score;
+      bestScore = *score;
     }
   }
 
   if (physicalDevice_ == VK_NULL_HANDLE) {
+    if (!foundHardwareGpu) {
+      throw std::runtime_error(
+          "No non-CPU Vulkan device was found. CPU Vulkan implementations "
+          "such as llvmpipe are intentionally disabled; install or enable "
+          "the vendor Vulkan driver (on NVIDIA Optimus, launch with "
+          "--config=nvidia)");
+    }
     throw std::runtime_error(
-        "No Vulkan device supports graphics, presentation, and swapchains");
+        "No non-CPU Vulkan device supports graphics, presentation, and "
+        "swapchains");
   }
 
   VkPhysicalDeviceProperties selected{};

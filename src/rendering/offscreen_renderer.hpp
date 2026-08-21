@@ -1,8 +1,9 @@
 #pragma once
 
 #include "src/rendering/fullscreen_pipeline.hpp"
-#include "src/rendering/render_settings.hpp"
+#include "src/rendering/gpu_parameters.hpp"
 #include "src/rendering/vulkan_instance.hpp"
+#include "src/scene/scene.hpp"
 #include "tools/cpp/runfiles/runfiles.h"
 
 #include <vulkan/vulkan.h>
@@ -14,7 +15,7 @@
 
 namespace gargantua::rendering {
 
-inline constexpr VkFormat kOffscreenFormat = VK_FORMAT_R8G8B8A8_SRGB;
+inline constexpr VkFormat kOffscreenFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 
 class OffscreenRenderer {
 public:
@@ -23,11 +24,11 @@ public:
   OffscreenRenderer(const OffscreenRenderer &) = delete;
   OffscreenRenderer &operator=(const OffscreenRenderer &) = delete;
   ~OffscreenRenderer();
-  void renderToPpm(const std::string &outputPath);
+  void renderToImage(const std::string &outputPath);
 
 private:
   void resolveRunfiles(const char *executablePath);
-  void resetParameters();
+  void resetScene();
   void createInstance();
   std::optional<uint32_t> findGraphicsFamily(VkPhysicalDevice device) const;
   bool supportsOutputFormat(VkPhysicalDevice device) const;
@@ -45,7 +46,7 @@ private:
   void createFence();
   void recordCommands();
   void submitAndWait();
-  void writePpm(const std::string &outputPath);
+  void writeImage(const std::string &outputPath);
   void cleanup() noexcept;
 
   uint32_t outputWidth_;
@@ -57,7 +58,7 @@ private:
   std::unique_ptr<bazel::tools::cpp::runfiles::Runfiles> runfiles_;
   std::string vertexShaderPath_;
   std::string fragmentShaderPath_;
-  RenderParameters parameters_{};
+  scene::Scene scene_{};
   VulkanInstance instance_;
   VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
   uint32_t graphicsFamily_ = 0;

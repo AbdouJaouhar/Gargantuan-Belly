@@ -1,19 +1,86 @@
+load("//tools/slang:slang_rules.bzl", "slang_spirv")
+
 package(default_visibility = ["//visibility:public"])
 
-genrule(
+slang_spirv(
     name = "fullscreen_vert_spv",
-    srcs = ["fullscreen.vert"],
-    outs = ["fullscreen.vert.spv"],
-    cmd = "glslc -O $(location fullscreen.vert) -o $@",
+    src = "fullscreen.slang",
+    entry_point = "vertexMain",
+    import_paths = [],
+    output_name = "fullscreen.vert.spv",
+    profile = "spirv_1_3",
+    stage = "vertex",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+slang_spirv(
+    name = "black_hole_frag_spv",
+    src = "black_hole.slang",
+    deps = ["//src/physics/slang:core"],
+    entry_point = "fragmentMain",
+    import_paths = [
+        "shaders",
+        "src/physics/slang",
+    ],
+    output_name = "black_hole.frag.spv",
+    profile = "spirv_1_3",
+    stage = "fragment",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+filegroup(
+    name = "black_hole_frag_reflection",
+    srcs = [":black_hole_frag_spv"],
+    output_group = "reflection",
+)
+
+slang_spirv(
+    name = "quartic_dispersion_probe_spv",
+    src = "quartic_dispersion_probe.slang",
+    deps = ["//src/physics/slang:core"],
+    entry_point = "computeMain",
+    import_paths = [
+        "shaders",
+        "src/physics/slang",
+    ],
+    output_name = "quartic_dispersion_probe.comp.spv",
+    profile = "spirv_1_3",
+    stage = "compute",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+# Kept temporarily as a visual-regression oracle. It is not loaded by either
+# executable; all production ray physics comes from the Slang target above.
+genrule(
+    name = "black_hole_frag_spv_legacy",
+    srcs = [
+        "appearance/accretion_disk.glsl",
+        "appearance/color.glsl",
+        "appearance/noise.glsl",
+        "black_hole.frag",
+        "physics/axis_regular_geodesic.glsl",
+        "physics/fido_camera.glsl",
+        "physics/kerr_metric.glsl",
+        "physics/null_geodesic.glsl",
+        "physics/ray_state.glsl",
+        "render_parameters.glsl",
+    ],
+    outs = ["black_hole.legacy.frag.spv"],
+    cmd = "glslc -O $(location black_hole.frag) -o $@",
 )
 
 genrule(
-    name = "black_hole_frag_spv",
-    srcs = ["black_hole.frag"] + glob([
-        "*.glsl",
-        "appearance/*.glsl",
-        "physics/*.glsl",
-    ]),
-    outs = ["black_hole.frag.spv"],
-    cmd = "glslc -O $(location black_hole.frag) -o $@",
+    name = "fullscreen_vert_spv_legacy",
+    srcs = ["fullscreen.vert"],
+    outs = ["fullscreen.legacy.vert.spv"],
+    cmd = "glslc -O $(location fullscreen.vert) -o $@",
 )

@@ -84,7 +84,10 @@ VulkanInstance::VulkanInstance(
   applicationInfo.applicationVersion = VK_MAKE_API_VERSION(0, 1, 0, 0);
   applicationInfo.pEngineName = "Gargantua Kerr ray tracer";
   applicationInfo.engineVersion = VK_MAKE_API_VERSION(0, 1, 0, 0);
-  applicationInfo.apiVersion = VK_API_VERSION_1_0;
+  // Slang's supported Vulkan path emits SPIR-V 1.3, which is core in Vulkan
+  // 1.1. Keeping these versions aligned avoids relying on experimental
+  // down-level SPIR-V emission.
+  applicationInfo.apiVersion = VK_API_VERSION_1_1;
 
   VkDebugUtilsMessengerCreateInfoEXT debugInfo = debugCreateInfo();
   VkInstanceCreateInfo createInfo{};

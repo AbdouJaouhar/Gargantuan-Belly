@@ -35,7 +35,7 @@ int gargantua::runHeadlessApp(int argc, char **argv) {
   try {
     if (argc > 5) {
       throw std::runtime_error(
-          "Usage: gargantua_headless [output.ppm] [width] [height] "
+          "Usage: gargantua_headless [output.png|output.ppm] [width] [height] "
           "[supersample]");
     }
     const std::string outputPath = argc > 1 ? argv[1] : "gargantua.ppm";
@@ -51,7 +51,7 @@ int gargantua::runHeadlessApp(int argc, char **argv) {
 
     rendering::OffscreenRenderer renderer(argc > 0 ? argv[0] : nullptr, width,
                                           height, supersample);
-    renderer.renderToPpm(outputPath);
+    renderer.renderToImage(outputPath);
     return 0;
   } catch (const std::exception &error) {
     std::cerr << "Fatal error: " << error.what() << '\n';

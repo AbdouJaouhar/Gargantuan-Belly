@@ -1,0 +1,27 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "LICENSE",
+    "bin/slangc",
+])
+
+# Keep the compiler's sibling shared libraries and standard modules available
+# inside Bazel's action sandbox.  slangc locates them relative to its binary.
+filegroup(
+    name = "toolchain_files",
+    srcs = glob([
+        "bin/**",
+        "lib/**",
+    ]),
+)
+
+# Generated host C++ includes Slang's portable scalar/vector prelude.  The
+# generated physics itself is compiled into Gargantua; libslang is not linked
+# into the application or tests.
+cc_library(
+    name = "host_prelude",
+    hdrs = glob(["include/*.h"]),
+    includes = ["include"],
+)

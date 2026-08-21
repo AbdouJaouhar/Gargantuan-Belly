@@ -1,4 +1,4 @@
-#include "src/ui/parameter_menu.hpp"
+#include "src/tools/ui/parameter_menu.hpp"
 
 #include "src/app/scene_controller.hpp"
 
@@ -78,7 +78,7 @@ void ParameterMenu::initializeVulkan(VkInstance instance,
                                      uint32_t minImageCount,
                                      uint32_t imageCount) {
   ImGui_ImplVulkan_InitInfo info{};
-  info.ApiVersion = VK_API_VERSION_1_0;
+  info.ApiVersion = VK_API_VERSION_1_1;
   info.Instance = instance;
   info.PhysicalDevice = physicalDevice;
   info.Device = device;
@@ -169,57 +169,47 @@ void ParameterMenu::draw(app::SceneController &scene,
   ImGui::TextDisabled("F1 hides this panel");
   ImGui::Separator();
 
-  RenderParameters &parameters = scene.parameters();
+  gargantua::scene::Scene &model = scene.scene();
   if (ImGui::CollapsingHeader("Camera & lens",
                               ImGuiTreeNodeFlags_DefaultOpen)) {
-    ImGui::SliderFloat("Observer radius", &parameters.camera.radius, 20.0f,
-                       150.0f, "%.1f M");
+    ImGui::SliderFloat("Observer radius", &model.camera.radius, 20.0f, 150.0f,
+                       "%.1f M");
     helpMarker("Boyer-Lindquist radius of the stationary FIDO observer.");
-    ImGui::SliderFloat("Inclination", &parameters.camera.inclinationDegrees,
-                       5.0f, 175.0f, "%.2f deg");
+    ImGui::SliderFloat("Inclination", &model.camera.inclinationDegrees, 5.0f,
+                       175.0f, "%.2f deg");
     ImGui::SliderFloat("Vertical field of view",
-                       &parameters.camera.verticalFovDegrees, 5.0f, 60.0f,
+                       &model.camera.verticalFovDegrees, 5.0f, 60.0f,
                        "%.1f deg");
-    ImGui::SliderFloat("Horizontal framing", &parameters.camera.horizontalShift,
+    ImGui::SliderFloat("Horizontal framing", &model.camera.horizontalShift,
                        -1.0f, 1.0f, "%+.3f");
-    ImGui::SliderFloat("Vertical framing", &parameters.options.verticalShift,
-                       -0.8f, 0.8f, "%+.3f");
+    ImGui::SliderFloat("Vertical framing", &model.camera.verticalShift, -0.8f,
+                       0.8f, "%+.3f");
   }
 
   if (ImGui::CollapsingHeader("Black hole & disk")) {
-    ImGui::SliderFloat("Dimensionless spin", &parameters.blackHole.spin,
-                       -0.998f, 0.998f, "%.3f");
+    ImGui::SliderFloat("Dimensionless spin", &model.spacetime.spin,
+                       gargantua::scene::kMinimumKerrSpin,
+                       gargantua::scene::kMaximumKerrSpin, "%.3f");
     helpMarker("a/M. Positive values rotate with the procedural disk.");
-    const float horizon =
-        1.0f + std::sqrt(std::max(1.0f - parameters.blackHole.spin *
-                                             parameters.blackHole.spin,
-                                  0.0f));
-    const float maximumInner =
-        std::max(parameters.blackHole.diskOuterRadius - 0.1f, horizon * 1.051f);
-    parameters.blackHole.diskInnerRadius = std::clamp(
-        parameters.blackHole.diskInnerRadius, horizon * 1.051f, maximumInner);
-    ImGui::SliderFloat("Disk inner radius",
-                       &parameters.blackHole.diskInnerRadius, horizon * 1.051f,
-                       maximumInner, "%.2f M");
-    parameters.blackHole.diskOuterRadius =
-        std::max(parameters.blackHole.diskOuterRadius,
-                 parameters.blackHole.diskInnerRadius + 0.1f);
-    ImGui::SliderFloat(
-        "Disk outer radius", &parameters.blackHole.diskOuterRadius,
-        parameters.blackHole.diskInnerRadius + 0.1f, 45.0f, "%.2f M");
-    ImGui::SliderFloat("Source temperature",
-                       &parameters.blackHole.diskTemperatureKelvin, 1800.0f,
-                       12000.0f, "%.0f K");
+    gargantua::scene::constrainDiskRadii(model);
+    const float minimumInner = gargantua::scene::minimumDiskInnerRadius(model);
+    const float maximumInner = gargantua::scene::maximumDiskInnerRadius(model);
+    ImGui::SliderFloat("Disk inner radius", &model.disk.innerRadius,
+                       minimumInner, maximumInner, "%.2f M");
+    gargantua::scene::constrainDiskRadii(model);
+    ImGui::SliderFloat("Disk outer radius", &model.disk.outerRadius,
+                       gargantua::scene::minimumDiskOuterRadius(model), 45.0f,
+                       "%.2f M");
+    ImGui::SliderFloat("Source temperature", &model.disk.temperatureKelvin,
+                       1800.0f, 12000.0f, "%.0f K");
     helpMarker("Used by the optional frequency-shift colour approximation.");
   }
 
   if (ImGui::CollapsingHeader("Appearance")) {
-    ImGui::SliderFloat("Exposure", &parameters.exposure, 0.05f, 3.0f, "%.2f",
-                       ImGuiSliderFlags_Logarithmic);
-    bool shifts = parameters.options.frequencyShiftsEnabled > 0.5f;
-    if (ImGui::Checkbox("Relativistic colour and beaming", &shifts)) {
-      parameters.options.frequencyShiftsEnabled = shifts ? 1.0f : 0.0f;
-    }
+    ImGui::SliderFloat("Exposure", &model.appearance.exposure, 0.05f, 3.0f,
+                       "%.2f", ImGuiSliderFlags_Logarithmic);
+    ImGui::Checkbox("Relativistic colour and beaming",
+                    &model.appearance.frequencyShiftsEnabled);
     helpMarker("Applies the disk frequency shift and g cubed intensity term. "
                "The movie-style preset leaves this off.");
   }

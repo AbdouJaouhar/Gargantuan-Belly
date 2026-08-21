@@ -4,7 +4,9 @@
 
 int main() {
   gargantua::app::SceneController scene;
-  if (scene.previewQuality() != gargantua::app::PreviewQuality::Balanced ||
+  if (scene.scene().spacetime.spin != 0.6f ||
+      scene.scene().disk.innerRadius != 6.0f ||
+      scene.previewQuality() != gargantua::app::PreviewQuality::Balanced ||
       scene.consumePipelineRebuildRequest()) {
     return EXIT_FAILURE;
   }

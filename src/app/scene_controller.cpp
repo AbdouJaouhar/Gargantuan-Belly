@@ -1,5 +1,7 @@
 #include "src/app/scene_controller.hpp"
 
+#include "src/scene/presets.hpp"
+
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
@@ -41,7 +43,7 @@ void SceneController::setPaused(bool paused) {
 }
 
 void SceneController::resetToFigure15a() {
-  parameters_ = figure15aParameters();
+  scene_ = scene::figure15aScene();
   paused_ = false;
   pausedTime_ = 0.0f;
   animationStart_ = std::chrono::steady_clock::now();
@@ -79,41 +81,45 @@ void SceneController::handleKey(GLFWwindow *window, int key, int action) {
     resetToFigure15a();
     changed = true;
   } else if (key == GLFW_KEY_D && action == GLFW_PRESS) {
-    parameters_.options.frequencyShiftsEnabled =
-        parameters_.options.frequencyShiftsEnabled > 0.5f ? 0.0f : 1.0f;
+    scene_.appearance.frequencyShiftsEnabled =
+        !scene_.appearance.frequencyShiftsEnabled;
     changed = true;
   } else if (key == GLFW_KEY_F && action == GLFW_PRESS) {
     frameLimitEnabled_ = !frameLimitEnabled_;
     changed = true;
   } else if (key == GLFW_KEY_LEFT) {
-    parameters_.camera.horizontalShift =
-        std::max(-2.0f, parameters_.camera.horizontalShift - 0.02f);
+    scene_.camera.horizontalShift =
+        std::max(-2.0f, scene_.camera.horizontalShift - 0.02f);
     changed = true;
   } else if (key == GLFW_KEY_RIGHT) {
-    parameters_.camera.horizontalShift =
-        std::min(2.0f, parameters_.camera.horizontalShift + 0.02f);
+    scene_.camera.horizontalShift =
+        std::min(2.0f, scene_.camera.horizontalShift + 0.02f);
     changed = true;
   } else if (key == GLFW_KEY_DOWN) {
-    parameters_.options.verticalShift =
-        std::max(-2.0f, parameters_.options.verticalShift - 0.02f);
+    scene_.camera.verticalShift =
+        std::max(-2.0f, scene_.camera.verticalShift - 0.02f);
     changed = true;
   } else if (key == GLFW_KEY_UP) {
-    parameters_.options.verticalShift =
-        std::min(2.0f, parameters_.options.verticalShift + 0.02f);
+    scene_.camera.verticalShift =
+        std::min(2.0f, scene_.camera.verticalShift + 0.02f);
     changed = true;
   } else if (key == GLFW_KEY_LEFT_BRACKET) {
-    parameters_.blackHole.spin =
-        std::max(-0.998f, parameters_.blackHole.spin - 0.02f);
+    scene_.spacetime.spin =
+        std::max(scene::kMinimumKerrSpin, scene_.spacetime.spin - 0.02f);
+    scene::constrainDiskRadii(scene_);
     changed = true;
   } else if (key == GLFW_KEY_RIGHT_BRACKET) {
-    parameters_.blackHole.spin =
-        std::min(0.998f, parameters_.blackHole.spin + 0.02f);
+    scene_.spacetime.spin =
+        std::min(scene::kMaximumKerrSpin, scene_.spacetime.spin + 0.02f);
+    scene::constrainDiskRadii(scene_);
     changed = true;
   } else if (key == GLFW_KEY_MINUS) {
-    parameters_.exposure = std::max(0.05f, parameters_.exposure - 0.05f);
+    scene_.appearance.exposure =
+        std::max(0.05f, scene_.appearance.exposure - 0.05f);
     changed = true;
   } else if (key == GLFW_KEY_EQUAL) {
-    parameters_.exposure = std::min(5.0f, parameters_.exposure + 0.05f);
+    scene_.appearance.exposure =
+        std::min(5.0f, scene_.appearance.exposure + 0.05f);
     changed = true;
   }
   if (changed) {
@@ -124,10 +130,10 @@ void SceneController::handleKey(GLFWwindow *window, int key, int action) {
 void SceneController::updateWindowTitle(GLFWwindow *window) const {
   std::ostringstream title;
   title << std::fixed << std::setprecision(2) << "Gargantua | exposure "
-        << parameters_.exposure << " | spin " << parameters_.blackHole.spin
-        << " | shift " << parameters_.camera.horizontalShift << ", "
-        << parameters_.options.verticalShift << " | Doppler "
-        << (parameters_.options.frequencyShiftsEnabled > 0.5f ? "on" : "off")
+        << scene_.appearance.exposure << " | spin " << scene_.spacetime.spin
+        << " | shift " << scene_.camera.horizontalShift << ", "
+        << scene_.camera.verticalShift << " | Doppler "
+        << (scene_.appearance.frequencyShiftsEnabled ? "on" : "off")
         << " | FPS cap ";
   if (frameLimitEnabled_) {
     title << frameLimitFps_;

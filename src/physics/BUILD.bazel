@@ -1,0 +1,149 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+PHYSICS_COPTS = [
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Wconversion",
+    "-Wshadow",
+]
+
+cc_library(
+    name = "geometry_core",
+    hdrs = [
+        "automatic_metric.hpp",
+        "chart.hpp",
+        "connection.hpp",
+        "curvature.hpp",
+        "metric.hpp",
+        "tensor.hpp",
+    ],
+    copts = PHYSICS_COPTS,
+    deps = ["@eigen//:eigen"],
+)
+
+cc_library(
+    name = "standard_metrics",
+    hdrs = [
+        "metrics/kerr.hpp",
+        "metrics/kerr_schild.hpp",
+        "metrics/minkowski.hpp",
+        "metrics/schwarzschild.hpp",
+    ],
+    copts = PHYSICS_COPTS,
+    deps = [":geometry_core"],
+)
+
+cc_library(
+    name = "metric_registry",
+    srcs = ["metric_registry.cpp"],
+    hdrs = ["metric_registry.hpp"],
+    copts = PHYSICS_COPTS,
+    deps = [
+        ":geometry_core",
+        ":canonical_metric",
+        ":standard_metrics",
+    ],
+)
+
+# Compatibility aggregate for callers that want the complete geometry catalog.
+cc_library(
+    name = "geometry",
+    deps = [
+        ":geometry_core",
+        ":metric_registry",
+        ":standard_metrics",
+    ],
+)
+
+cc_library(
+    name = "hamiltonian_core",
+    hdrs = [
+        "dynamics/automatic_hamiltonian.hpp",
+        "dynamics/hamiltonian_system.hpp",
+        "dynamics/phase_space.hpp",
+    ],
+    copts = PHYSICS_COPTS,
+    deps = [
+        ":geometry_core",
+        "@eigen//:eigen",
+    ],
+)
+
+cc_library(
+    name = "metric_geodesic",
+    hdrs = ["dynamics/metric_geodesic.hpp"],
+    copts = PHYSICS_COPTS,
+    deps = [
+        ":geometry_core",
+        ":hamiltonian_core",
+    ],
+)
+
+cc_library(
+    name = "canonical_dynamics",
+    srcs = ["dynamics/canonical_systems.cpp"],
+    hdrs = ["dynamics/canonical_systems.hpp"],
+    copts = PHYSICS_COPTS,
+    deps = [
+        ":canonical_engine",
+        ":hamiltonian_core",
+    ],
+)
+
+cc_library(
+    name = "odeint",
+    hdrs = [
+        "dynamics/geodesic_integrator.hpp",
+        "dynamics/integrator.hpp",
+    ],
+    copts = PHYSICS_COPTS,
+    deps = [
+        ":hamiltonian_core",
+        "@boost_headers//:headers",
+        "@eigen//:eigen",
+    ],
+)
+
+# Compatibility aggregate for callers that want all ray-dynamics facilities.
+cc_library(
+    name = "dynamics",
+    deps = [
+        ":canonical_dynamics",
+        ":hamiltonian_core",
+        ":metric_geodesic",
+        ":odeint",
+    ],
+)
+
+cc_library(
+    name = "reference_engine",
+    deps = [
+        ":canonical_dynamics",
+        ":canonical_engine",
+        ":dynamics",
+        ":geometry",
+    ],
+)
+
+cc_library(
+    name = "canonical_engine",
+    srcs = ["canonical_engine.cpp"],
+    hdrs = ["canonical_engine.hpp"],
+    copts = PHYSICS_COPTS,
+    deps = ["//src/physics/slang:generated_host_physics"],
+)
+
+cc_library(
+    name = "canonical_metric",
+    srcs = ["metrics/canonical_kerr_schild.cpp"],
+    hdrs = ["metrics/canonical_kerr_schild.hpp"],
+    copts = PHYSICS_COPTS,
+    deps = [
+        ":canonical_engine",
+        ":geometry_core",
+    ],
+)

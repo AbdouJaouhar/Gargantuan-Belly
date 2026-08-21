@@ -3,7 +3,7 @@
 
 struct RayState {
     float r;
-    float mu;
+    float theta;
     float phi;
     float p_r;
     float p_theta;
@@ -11,7 +11,7 @@ struct RayState {
 
 struct RayDerivative {
     float r;
-    float mu;
+    float theta;
     float phi;
     float p_r;
     float p_theta;
@@ -24,4 +24,3 @@ struct CameraRay {
 };
 
 #endif
-

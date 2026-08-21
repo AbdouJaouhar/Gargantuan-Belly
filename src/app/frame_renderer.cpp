@@ -1,5 +1,6 @@
 #include "src/app/application.hpp"
 
+#include "src/rendering/gpu_parameters.hpp"
 #include "src/rendering/vulkan_helpers.hpp"
 
 #include <algorithm>
@@ -91,12 +92,13 @@ void Application::recordCommandBuffer(VkCommandBuffer commandBuffer,
   VkRect2D scissor{{0, 0}, swapchainExtent_};
   vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-  RenderParameters &parameters = scene_.parameters();
-  parameters.resolution[0] = static_cast<float>(swapchainExtent_.width);
-  parameters.resolution[1] = static_cast<float>(swapchainExtent_.height);
-  parameters.time = scene_.animationTime();
+  const rendering::GpuRenderParameters parameters =
+      rendering::packGpuParameters(scene_.scene(),
+                                   {static_cast<float>(swapchainExtent_.width),
+                                    static_cast<float>(swapchainExtent_.height),
+                                    scene_.animationTime()});
   vkCmdPushConstants(commandBuffer, pipeline_.layout(),
-                     VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(RenderParameters),
+                     VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(parameters),
                      &parameters);
   vkCmdDraw(commandBuffer, 3, 1, 0, 0);
   menu_.record(commandBuffer);

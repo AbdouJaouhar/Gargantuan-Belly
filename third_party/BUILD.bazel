@@ -1,3 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["imgui.BUILD.bazel"])
+exports_files([
+    "boost.BUILD.bazel",
+    "imgui.BUILD.bazel",
+    "slang.BUILD.bazel",
+])

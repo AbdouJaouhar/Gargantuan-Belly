@@ -10,13 +10,6 @@ vec2 camera_screen_from_pixel(vec2 pixel) {
                 screen.y - pc.options.vertical_shift);
 }
 
-vec2 pixel_from_camera_screen(vec2 screen) {
-    float aspect = pc.resolution.x / max(pc.resolution.y, 1.0);
-    vec2 normalized = vec2(screen.x / aspect + pc.camera.horizontal_shift,
-                           screen.y + pc.options.vertical_shift);
-    return 0.5 * (normalized + 1.0);
-}
-
 CameraRay make_camera_ray(vec2 pixel) {
     float a = clamp(pc.black_hole.spin, -0.998, 0.998);
     float horizon = 1.0 + sqrt(max(1.0 - a * a, 0.0));
@@ -47,7 +40,7 @@ CameraRay make_camera_ray(vec2 pixel) {
 
     CameraRay ray;
     ray.state = RayState(camera_radius,
-                         cos(camera_theta),
+                         camera_theta,
                          0.0,
                          fido_energy * rho * n_fido.x
                            / sqrt(max(delta, 1e-7)),

@@ -1,6 +1,7 @@
 #include "src/app/application.hpp"
 
 #include "src/rendering/fullscreen_pipeline.hpp"
+#include "src/rendering/gpu_parameters.hpp"
 #include "src/rendering/vulkan_helpers.hpp"
 
 #include <GLFW/glfw3.h>
@@ -211,8 +212,8 @@ void Application::createPipeline() {
   const gargantua::rendering::RayIntegrationQuality previewQuality =
       qualitySettings(scene_.previewQuality());
   pipeline_ = gargantua::rendering::createFullscreenPipeline(
-      device_, renderPass_, sizeof(RenderParameters), vertexShaderPath_,
-      fragmentShaderPath_, previewQuality);
+      device_, renderPass_, sizeof(rendering::GpuRenderParameters),
+      vertexShaderPath_, fragmentShaderPath_, previewQuality);
 }
 
 void Application::rebuildRayPipelineIfRequested() {

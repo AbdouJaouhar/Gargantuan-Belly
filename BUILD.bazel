@@ -14,9 +14,25 @@ COPTS = [
 ]
 
 cc_library(
-    name = "render_settings",
-    hdrs = ["src/rendering/render_settings.hpp"],
+    name = "scene_model",
+    hdrs = ["src/scene/scene.hpp"],
     copts = COPTS,
+)
+
+cc_library(
+    name = "scene_presets",
+    srcs = ["src/scene/presets.cpp"],
+    hdrs = ["src/scene/presets.hpp"],
+    copts = COPTS,
+    deps = [":scene_model"],
+)
+
+cc_library(
+    name = "gpu_parameters",
+    srcs = ["src/rendering/gpu_parameters.cpp"],
+    hdrs = ["src/rendering/gpu_parameters.hpp"],
+    copts = COPTS,
+    deps = [":scene_model"],
 )
 
 cc_library(
@@ -35,18 +51,27 @@ cc_library(
 )
 
 cc_library(
+    name = "vulkan_device_policy",
+    hdrs = ["src/rendering/vulkan_device_policy.hpp"],
+    copts = COPTS,
+)
+
+cc_library(
     name = "scene_controller",
     srcs = ["src/app/scene_controller.cpp"],
     hdrs = ["src/app/scene_controller.hpp"],
     copts = COPTS,
     linkopts = ["-lglfw"],
-    deps = [":render_settings"],
+    deps = [
+        ":scene_model",
+        ":scene_presets",
+    ],
 )
 
 cc_library(
     name = "parameter_menu",
-    srcs = ["src/ui/parameter_menu.cpp"],
-    hdrs = ["src/ui/parameter_menu.hpp"],
+    srcs = ["src/tools/ui/parameter_menu.cpp"],
+    hdrs = ["src/tools/ui/parameter_menu.hpp"],
     copts = COPTS,
     deps = [
         ":scene_controller",
@@ -66,15 +91,16 @@ cc_library(
         "src/app/application.hpp",
     ],
     data = [
-        "//shaders:black_hole.frag.spv",
-        "//shaders:fullscreen.vert.spv",
+        "//shaders:black_hole_frag_spv",
+        "//shaders:fullscreen_vert_spv",
     ],
     copts = COPTS,
     linkopts = ["-lglfw"],
     deps = [
-        ":render_settings",
+        ":gpu_parameters",
         ":parameter_menu",
         ":scene_controller",
+        ":vulkan_device_policy",
         ":vulkan_rendering",
         "@bazel_tools//tools/cpp/runfiles",
     ],
@@ -95,6 +121,14 @@ cc_library(
 )
 
 cc_library(
+    name = "high_precision_image_writer",
+    srcs = ["src/io/high_precision_image_writer.cpp"],
+    hdrs = ["src/io/high_precision_image_writer.hpp"],
+    copts = COPTS,
+    linkopts = ["-lz"],
+)
+
+cc_library(
     name = "offscreen_renderer",
     srcs = [
         "src/rendering/offscreen_cli.cpp",
@@ -106,13 +140,16 @@ cc_library(
         "src/rendering/offscreen_renderer.hpp",
     ],
     data = [
-        "//shaders:black_hole.frag.spv",
-        "//shaders:fullscreen.vert.spv",
+        "//shaders:black_hole_frag_spv",
+        "//shaders:fullscreen_vert_spv",
     ],
     copts = COPTS,
     deps = [
-        ":ppm_writer",
-        ":render_settings",
+        ":gpu_parameters",
+        ":high_precision_image_writer",
+        ":scene_model",
+        ":scene_presets",
+        ":vulkan_device_policy",
         ":vulkan_rendering",
         "@bazel_tools//tools/cpp/runfiles",
     ],
@@ -125,12 +162,40 @@ cc_binary(
     deps = [":offscreen_renderer"],
 )
 
+# Pure CPU diagnostic: intentionally has no Vulkan, GLFW, ImGui, scene, or
+# renderer dependency.
+cc_binary(
+    name = "gargantua_physics_probe",
+    srcs = ["src/tools/physics_probe.cpp"],
+    copts = COPTS,
+    deps = [
+        "//src/physics:geometry_core",
+        "//src/physics:metric_registry",
+        "@eigen//:eigen",
+    ],
+)
+
 cc_test(
-    name = "render_settings_test",
-    srcs = ["tests/render_settings_test.cpp"],
+    name = "scene_preset_test",
+    srcs = ["tests/scene_preset_test.cpp"],
     copts = COPTS,
     size = "small",
-    deps = [":render_settings"],
+    deps = [
+        ":scene_model",
+        ":scene_presets",
+    ],
+)
+
+cc_test(
+    name = "gpu_parameters_test",
+    srcs = ["tests/gpu_parameters_test.cpp"],
+    copts = COPTS,
+    size = "small",
+    deps = [
+        ":gpu_parameters",
+        ":scene_model",
+        ":scene_presets",
+    ],
 )
 
 cc_test(
@@ -142,6 +207,72 @@ cc_test(
 )
 
 cc_test(
+    name = "physics_geometry_test",
+    srcs = ["tests/physics_geometry_test.cpp"],
+    copts = COPTS,
+    size = "small",
+    deps = [
+        "//src/physics:geometry_core",
+        "//src/physics:metric_registry",
+        "//src/physics:standard_metrics",
+        "@eigen//:eigen",
+    ],
+)
+
+cc_test(
+    name = "canonical_engine_test",
+    srcs = ["tests/canonical_engine_test.cpp"],
+    data = ["//shaders:quartic_dispersion_probe_spv"],
+    copts = COPTS,
+    size = "small",
+    deps = [
+        "//src/physics:canonical_engine",
+        "//src/physics:canonical_dynamics",
+        "//src/physics:standard_metrics",
+    ],
+)
+
+cc_test(
+    name = "metric_geodesic_system_test",
+    srcs = ["tests/metric_geodesic_system_test.cpp"],
+    copts = COPTS,
+    size = "small",
+    deps = [
+        "//src/physics:metric_geodesic",
+        "//src/physics:standard_metrics",
+        "@eigen//:eigen",
+    ],
+)
+
+cc_test(
+    name = "geodesic_integration_test",
+    srcs = ["tests/geodesic_integration_test.cpp"],
+    copts = COPTS,
+    size = "small",
+    deps = [
+        "//src/physics:hamiltonian_core",
+        "//src/physics:canonical_dynamics",
+        "//src/physics:canonical_metric",
+        "//src/physics:metric_geodesic",
+        "//src/physics:odeint",
+        "//src/physics:standard_metrics",
+        "@eigen//:eigen",
+    ],
+)
+
+cc_test(
+    name = "odeint_smoke_test",
+    srcs = ["tests/odeint_smoke_test.cpp"],
+    copts = COPTS,
+    size = "small",
+    deps = [
+        "//src/physics:odeint",
+        "@doctest//:doctest",
+        "@doctest//:main",
+    ],
+)
+
+cc_test(
     name = "ppm_writer_test",
     srcs = ["tests/ppm_writer_test.cpp"],
     copts = COPTS,
@@ -150,11 +281,28 @@ cc_test(
 )
 
 cc_test(
+    name = "high_precision_image_writer_test",
+    srcs = ["tests/high_precision_image_writer_test.cpp"],
+    copts = COPTS,
+    size = "small",
+    deps = [":high_precision_image_writer"],
+)
+
+cc_test(
+    name = "vulkan_device_policy_test",
+    srcs = ["tests/vulkan_device_policy_test.cpp"],
+    copts = COPTS,
+    size = "small",
+    deps = [":vulkan_device_policy"],
+)
+
+cc_test(
     name = "shader_interface_test",
     srcs = ["tests/shader_interface_test.cpp"],
     data = [
-        "src/rendering/render_settings.hpp",
-        "//shaders:render_parameters.glsl",
+        "src/rendering/gpu_parameters.hpp",
+        "//shaders:black_hole.slang",
+        "//shaders:black_hole_frag_reflection",
     ],
     copts = COPTS,
     size = "small",
@@ -164,9 +312,17 @@ cc_test(
 test_suite(
     name = "tests",
     tests = [
+        ":canonical_engine_test",
+        ":gpu_parameters_test",
+        ":geodesic_integration_test",
+        ":high_precision_image_writer_test",
+        ":metric_geodesic_system_test",
+        ":odeint_smoke_test",
+        ":physics_geometry_test",
         ":ppm_writer_test",
-        ":render_settings_test",
+        ":scene_preset_test",
         ":scene_controller_test",
         ":shader_interface_test",
+        ":vulkan_device_policy_test",
     ],
 )

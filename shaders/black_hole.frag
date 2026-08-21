@@ -10,6 +10,7 @@ layout(location = 0) out vec4 out_color;
 #include "physics/ray_state.glsl"
 #include "physics/kerr_metric.glsl"
 #include "physics/null_geodesic.glsl"
+#include "physics/axis_regular_geodesic.glsl"
 #include "physics/fido_camera.glsl"
 #include "appearance/noise.glsl"
 #include "appearance/color.glsl"
@@ -25,6 +26,11 @@ TraceResult trace_kerr_ray(vec2 pixel) {
     CameraRay ray = make_camera_ray(pixel);
     RayState state = ray.state;
     float a = clamp(pc.black_hole.spin, -0.998, 0.998);
+    AxisRegularRayConstants ray_constants = axis_regular_constants(
+        ray.state, a, ray.b);
+    AxisRegularRayState regular_state = axis_regular_state(
+        ray.state, a, ray_constants);
+    bool regular_chart_active = false;
     float horizon = 1.0 + sqrt(max(1.0 - a * a, 0.0));
     float inner = max(pc.black_hole.disk_inner_radius, horizon * 1.05);
     float outer = max(pc.black_hole.disk_outer_radius, inner + 0.1);
@@ -36,32 +42,84 @@ TraceResult trace_kerr_ray(vec2 pixel) {
     result.escaped = 0.0;
 
     for (int step_index = 0; step_index < MAX_GEODESIC_STEPS; ++step_index) {
-        if (state.r <= horizon * 1.008 || isnan(state.r) || isinf(state.r)) {
+        float current_radius = regular_chart_active
+                             ? regular_state.r : state.r;
+        float current_radial_momentum = regular_chart_active
+                                      ? regular_state.radial_velocity
+                                      : state.p_r;
+        if (current_radius <= horizon * 1.008
+                || isnan(current_radius) || isinf(current_radius)) {
             break;
         }
-        if (step_index > 8 && state.r >= escape_radius && state.p_r < 0.0) {
+        if (step_index > 8 && current_radius >= escape_radius
+                           && current_radial_momentum < 0.0) {
             result.escaped = 1.0;
             break;
         }
 
-        float distance_to_horizon = state.r - horizon;
-        float step_magnitude = clamp(0.038 * GEODESIC_STEP_SCALE * state.r,
+        float distance_to_horizon = current_radius - horizon;
+        float step_magnitude = clamp(0.038 * GEODESIC_STEP_SCALE
+                                           * current_radius,
                                      0.018 * GEODESIC_STEP_SCALE,
                                      0.78 * GEODESIC_STEP_SCALE);
         step_magnitude = min(step_magnitude,
                              max(0.004, distance_to_horizon * 0.20));
 
-        // Tiny non-zero b creates a stiff polar turning point.  Limit the step
-        // by its angular crossing time before advancing the RK4 integrator.
-        RayDerivative local_derivative = geodesic_derivative(state, a, ray.b);
-        if (abs(ray.b) > 1e-5) {
-            float sin_theta = sqrt(max(1.0 - state.mu * state.mu, 1e-8));
-            float theta_distance = acos(clamp(abs(state.mu), 0.0, 1.0));
-            float theta_rate = abs(local_derivative.mu) / max(sin_theta, 1e-5);
-            float polar_step_limit = 0.18 * max(theta_distance, 1e-4)
-                                   / max(theta_rate, 1e-6);
+        if (!regular_chart_active) {
+            RayDerivative local_derivative = geodesic_derivative(
+                state, a, ray.b);
+            float theta_distance = min(state.theta, PI - state.theta);
+            float predicted_theta_travel = step_magnitude
+                                         * abs(local_derivative.theta);
+            bool moving_toward_pole = cos(state.theta) * state.p_theta > 0.0;
+
+            // Switch charts before an ordinary RK stage can enter the
+            // Boyer-Lindquist polar singularity.  The regular chart is exact;
+            // this angle only chooses where its better conditioning begins.
+            const float regular_chart_enter = 0.10;
+            if (theta_distance < regular_chart_enter
+                    || (moving_toward_pole
+                        && theta_distance - predicted_theta_travel
+                           < regular_chart_enter)) {
+                regular_state = axis_regular_state(
+                    state, a, ray_constants);
+                regular_chart_active = true;
+            } else if (ray.b != 0.0) {
+                float polar_step_limit = 0.18 * theta_distance
+                                       / max(abs(local_derivative.theta), 1e-6);
+                step_magnitude = min(step_magnitude,
+                                     max(polar_step_limit, 1e-5));
+            }
+        }
+
+        if (regular_chart_active) {
+            float rho_squared = regular_state.r * regular_state.r
+                              + a * a * regular_state.polar_direction.z
+                                      * regular_state.polar_direction.z;
+            float angular_rate = length(regular_state.polar_velocity)
+                               / max(rho_squared, 1e-8);
             step_magnitude = min(step_magnitude,
-                                 max(polar_step_limit, 2e-4));
+                                 max(0.14 / max(angular_rate, 1e-6), 1e-5));
+
+            float affine_step = -step_magnitude;
+            regular_state = integrate_axis_regular_rk4(
+                regular_state, affine_step, a, ray_constants);
+
+            // The disk is equatorial and cannot overlap this polar chart.
+            // Return to the faster BL equations only after moving safely away
+            // from the axis; hysteresis prevents chart-edge chatter.
+            float polar_sine = length(regular_state.polar_direction.xy);
+            bool moving_away_from_pole = dot(
+                regular_state.polar_direction.xy,
+                regular_state.polar_velocity.xy) < 0.0;
+            const float regular_chart_exit_sine = 0.1395431; // sin(0.14)
+            if (polar_sine > regular_chart_exit_sine
+                    && moving_away_from_pole) {
+                state = axis_regular_to_boyer_lindquist(
+                    regular_state, a, ray_constants);
+                regular_chart_active = false;
+            }
+            continue;
         }
 
         float affine_step = -step_magnitude; // trace backward to the source
@@ -69,9 +127,9 @@ TraceResult trace_kerr_ray(vec2 pixel) {
         fold_polar_coordinate(next_state);
 
         // Appendix A.6: sample a thin volumetric disk on each geodesic segment.
-        // r*mu is height in oblate-spheroidal coordinates.
-        float start_height = state.r * state.mu;
-        float end_height = next_state.r * next_state.mu;
+        // r*cos(theta) is height in oblate-spheroidal coordinates.
+        float start_height = state.r * cos(state.theta);
+        float end_height = next_state.r * cos(next_state.theta);
         float height_delta = start_height - end_height;
         float segment_fraction = 0.5;
         if (abs(height_delta) > 1e-6) {
@@ -109,7 +167,8 @@ TraceResult trace_kerr_ray(vec2 pixel) {
         state = next_state;
     }
 
-    if (result.escaped < 0.5 && state.r > escape_radius * 0.92) {
+    float final_radius = regular_chart_active ? regular_state.r : state.r;
+    if (result.escaped < 0.5 && final_radius > escape_radius * 0.92) {
         result.escaped = 1.0;
     }
     return result;
@@ -143,28 +202,8 @@ vec3 render_hdr(vec2 pixel) {
     return hdr;
 }
 
-vec3 render_pole_safe(vec2 pixel) {
-    // Boyer-Lindquist phi is singular on the spin axis.  Reconstruct a narrow
-    // meridional strip from stable one-sided limits in camera space.
-    vec2 screen = camera_screen_from_pixel(pixel);
-    float meridional_pixels = screen.x * 0.5 * pc.resolution.y;
-    float half_width = max(8.0, pc.resolution.y * (8.0 / 459.0));
-    if (abs(meridional_pixels) >= half_width) {
-        return render_hdr(pixel);
-    }
-
-    float screen_per_pixel = 2.0 / max(pc.resolution.y, 1.0);
-    vec2 sample_screen = screen;
-    sample_screen.x = -half_width * screen_per_pixel;
-    vec3 negative_limit = render_hdr(pixel_from_camera_screen(sample_screen));
-    sample_screen.x = half_width * screen_per_pixel;
-    vec3 positive_limit = render_hdr(pixel_from_camera_screen(sample_screen));
-    float blend = saturate(0.5 + 0.5 * meridional_pixels / half_width);
-    return mix(negative_limit, positive_limit, blend);
-}
-
 void main() {
-    vec3 hdr = render_pole_safe(v_uv);
+    vec3 hdr = render_hdr(v_uv);
     float dither = hash12(gl_FragCoord.xy + 0.01 * pc.time) - 0.5;
     vec3 mapped = filmic_luminance(hdr * max(pc.exposure, 0.01));
     mapped += dither / 3294.0;

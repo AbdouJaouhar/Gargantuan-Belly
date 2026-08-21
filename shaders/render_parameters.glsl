@@ -1,7 +1,7 @@
 #ifndef GARGANTUA_RENDER_PARAMETERS_GLSL
 #define GARGANTUA_RENDER_PARAMETERS_GLSL
 
-// GPU mirror of src/rendering/render_settings.hpp. Units used by the
+// GPU mirror of src/rendering/gpu_parameters.hpp. Units used by the
 // physical model are geometrized: G = c = M = 1, so every distance is measured
 // in black-hole masses and a/M is dimensionless.
 struct CameraParameters {

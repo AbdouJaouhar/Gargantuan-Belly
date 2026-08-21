@@ -1,0 +1,38 @@
+#include "src/rendering/gpu_parameters.hpp"
+#include "src/scene/presets.hpp"
+
+#include <cmath>
+#include <cstdlib>
+
+namespace {
+
+bool close(float actual, float expected) {
+  return std::abs(actual - expected) < 0.0001f;
+}
+
+} // namespace
+
+int main() {
+  gargantua::scene::Scene scene = gargantua::scene::figure15aScene();
+  scene.camera.horizontalShift = -0.25f;
+  scene.appearance.frequencyShiftsEnabled = true;
+
+  const gargantua::rendering::GpuRenderParameters parameters =
+      gargantua::rendering::packGpuParameters(scene, {1920.0f, 1080.0f, 3.25f});
+  if (!close(parameters.resolution[0], 1920.0f) ||
+      !close(parameters.resolution[1], 1080.0f) ||
+      !close(parameters.time, 3.25f) || !close(parameters.exposure, 1.15f) ||
+      !close(parameters.camera.radius, 74.1f) ||
+      !close(parameters.camera.inclinationDegrees, 86.56f) ||
+      !close(parameters.camera.verticalFovDegrees, 17.2f) ||
+      !close(parameters.camera.horizontalShift, -0.25f) ||
+      !close(parameters.blackHole.spin, 0.6f) ||
+      !close(parameters.blackHole.diskInnerRadius, 6.0f) ||
+      !close(parameters.blackHole.diskOuterRadius, 18.7f) ||
+      !close(parameters.blackHole.diskTemperatureKelvin, 4500.0f) ||
+      !close(parameters.options.verticalShift, 0.045f) ||
+      !close(parameters.options.frequencyShiftsEnabled, 1.0f)) {
+    return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
+}

@@ -127,7 +127,7 @@ void OffscreenRenderer::createRenderPass() {
 
 void OffscreenRenderer::createPipeline() {
   pipeline_ = gargantua::rendering::createFullscreenPipeline(
-      device_, renderPass_, sizeof(RenderParameters), vertexShaderPath_,
+      device_, renderPass_, sizeof(GpuRenderParameters), vertexShaderPath_,
       fragmentShaderPath_);
 }
 
