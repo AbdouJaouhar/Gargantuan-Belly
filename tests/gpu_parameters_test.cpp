@@ -27,13 +27,20 @@ int main() {
       !close(parameters.camera.inclinationDegrees, 86.56f) ||
       !close(parameters.camera.verticalFovDegrees, 17.2f) ||
       !close(parameters.camera.horizontalShift, -0.25f) ||
-      !close(parameters.blackHole.spin, 0.6f) ||
+      !close(parameters.blackHole.metricParameter, 0.6f) ||
       !close(parameters.blackHole.diskInnerRadius, 6.0f) ||
       !close(parameters.blackHole.diskOuterRadius, 18.7f) ||
       !close(parameters.blackHole.diskTemperatureKelvin, 4500.0f) ||
       !close(parameters.options.verticalShift, 0.045f) ||
       !close(parameters.options.cameraRollDegrees, 32.5f) ||
       !close(parameters.options.frequencyShiftsEnabled, 1.0f)) {
+    return EXIT_FAILURE;
+  }
+  scene.spacetime.model = gargantua::scene::SpacetimeModel::ReissnerNordstrom;
+  scene.spacetime.charge = 0.8f;
+  const auto charged =
+      gargantua::rendering::packGpuParameters(scene, {1920.0f, 1080.0f, 3.25f});
+  if (!close(charged.blackHole.metricParameter, 0.8f)) {
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;

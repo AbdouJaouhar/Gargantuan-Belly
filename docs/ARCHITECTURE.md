@@ -14,13 +14,12 @@ in `src/physics/slang/`. Bazel compiles those modules in two forms:
 ```
 
 This is not a CPU implementation checked against a separately maintained GPU
-implementation. The Kerr-Schild metric components, Hamiltonian, exact
-factorized canonical flow, and RK4 algorithm are the same Slang source on both
-targets. Reverse-mode automatic differentiation remains a shared fallback for
-new systems and an independent scientific oracle for the optimized Kerr flow.
-`KerrCoordinates.slang` also keeps camera/chart initialization in the Slang
-physics package, but it is currently imported by the fragment only and is not
-part of the generated host ABI.
+implementation. The Kerr and Reissner–Nordström metric components,
+Hamiltonians, exact factorized canonical flows, and RK4 algorithm are the same
+Slang source on both targets. Reverse-mode automatic differentiation remains a
+shared fallback and an independent scientific oracle for both optimized flows.
+Their coordinate modules also keep camera initialization in the Slang physics
+package; those camera functions are fragment-only and not in the host ABI.
 
 The backends still make different numerical-policy choices. The active fragment
 uses float arithmetic and the shared fixed RK4 step with a rendering step-size
@@ -309,8 +308,8 @@ theory:
 the first three steps. The compile-only
 `//shaders:quartic_dispersion_probe_spv` target also instantiates the automatic
 canonical-flow adapter for SPIR-V, proving the interface is cross-target. It is
-not a rendering pipeline; the active fragment instantiates
-`KerrSchildHamiltonianSystem`.
+not a rendering pipeline; the active render entries instantiate the Kerr and
+Reissner–Nordström systems.
 
 ## Registry status
 
@@ -319,29 +318,32 @@ not a rendering pipeline; the active fragment instantiates
 | ID | Implementation | Current role |
 |---|---|---|
 | `kerr-schild` | Generated Slang through `CanonicalKerrSchildMetric` | Canonical host metric; same metric source as active rendering |
+| `reissner-nordstrom` | Generated Slang through `CanonicalReissnerNordstromMetric` | Canonical charged metric; same source as its render pipeline |
 | `minkowski` | C++ `AutomaticMetric` model | Flat-space scientific/reference oracle |
 | `schwarzschild` | C++ `AutomaticMetric` model | Analytic scientific/reference oracle |
 | `kerr-bl` | C++ `AutomaticMetric` model | Boyer–Lindquist validation oracle |
 
 The registry validates descriptor metadata, defaults, overrides, duplicate IDs,
 factories, and non-null factory results. Its Kerr factories accept positive
-finite mass and finite spin; they do not impose `abs(spin) < mass`. The
-Figure 15 renderer separately clamps `a/M` to `[-0.998, 0.998]` because its
-scene, disk clearance, and horizon termination assume a subextremal black hole.
+finite mass and finite spin or charge; they do not impose extremality bounds.
+The renderer separately clamps `a/M` to `[-0.998, 0.998]` and `|Q|/M` to
+`[0, 0.998]` because its scene, disk clearance, and termination assume a
+subextremal black hole.
 
-There is currently no runtime theory registry and no UI metric selector.
-Selecting another renderable theory means selecting its concrete SPIR-V
-pipeline in the application. Adding an entry to `MetricRegistry` alone changes
+There is no generic runtime theory registry. The UI explicitly selects between
+the two supported scene models and the application binds their separate SPIR-V
+fragment pipelines. Adding an entry to `MetricRegistry` alone still changes
 only host tools.
 
 ## Active, reference, and legacy code
 
-- `shaders/black_hole.slang` and `//shaders:black_hole_frag_spv` are active
-  in both interactive and headless rendering.
+- `shaders/black_hole.slang` supplies the active
+  `//shaders:black_hole_frag_spv` and
+  `//shaders:reissner_nordstrom_frag_spv` entries for both frontends.
 - `shaders/fullscreen.slang` supplies the active vertex stage. The old
   `fullscreen.vert` is a legacy oracle.
-- `src/physics/slang/` is authoritative for production Kerr metric and ray
-  equations.
+- `src/physics/slang/` is authoritative for both production metrics and their
+  ray equations.
 - The older C++ metrics and scalar-generic C++ Hamiltonian helpers are
   independent validation and experimentation oracles.
 - `shaders/black_hole.frag`, `shaders/physics/*.glsl`,

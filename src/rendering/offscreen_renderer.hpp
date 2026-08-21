@@ -19,8 +19,11 @@ inline constexpr VkFormat kOffscreenFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 
 class OffscreenRenderer {
 public:
-  OffscreenRenderer(const char *executablePath, uint32_t outputWidth,
-                    uint32_t outputHeight, uint32_t supersample);
+  OffscreenRenderer(
+      const char *executablePath, uint32_t outputWidth, uint32_t outputHeight,
+      uint32_t supersample,
+      scene::SpacetimeModel spacetimeModel = scene::SpacetimeModel::Kerr,
+      float metricParameter = 0.6f);
   OffscreenRenderer(const OffscreenRenderer &) = delete;
   OffscreenRenderer &operator=(const OffscreenRenderer &) = delete;
   ~OffscreenRenderer();
@@ -57,7 +60,8 @@ private:
   VkDeviceSize pixelByteCount_ = 0;
   std::unique_ptr<bazel::tools::cpp::runfiles::Runfiles> runfiles_;
   std::string vertexShaderPath_;
-  std::string fragmentShaderPath_;
+  std::string kerrFragmentShaderPath_;
+  std::string reissnerNordstromFragmentShaderPath_;
   scene::Scene scene_{};
   VulkanInstance instance_;
   VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;

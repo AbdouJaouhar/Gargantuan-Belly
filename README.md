@@ -1,4 +1,4 @@
-# Gargantuan-Belly — real-time Kerr black hole in Vulkan
+# Gargantuan-Belly — real-time Kerr and charged black holes in Vulkan
 
 This project renders a cinematic, gravitationally lensed black hole and
 accretion disk with Vulkan. Its physical model is based on:
@@ -12,8 +12,8 @@ It is a real-time renderer inspired by DNGR, not a claim to reproduce Double
 Negative's production code or assets. The default shot is visually calibrated
 against the unshifted, unflared disk in the paper's Figure 15(a).
 
-The project has one canonical implementation of its production metric and ray
-equations. Their Slang modules in `src/physics/slang/` compile to
+The project has one canonical implementation of each production metric and its
+ray equations. Their Slang modules in `src/physics/slang/` compile to
 double-precision host C++ for scientific tests and the physics probe, and to
 float SPIR-V for the active Vulkan fragment pipeline. Renderer-only camera and
 appearance modules are linked only into that fragment. See
@@ -37,6 +37,12 @@ and the metric/theory extension workflow.
   fallback for new theories and the scientific oracle for the optimized Kerr
   flow. The metric's shared domain predicate keeps the regular axis/horizons
   valid while rejecting its zero-radius branch disk and ring.
+- A selectable Reissner–Nordström spacetime in horizon-penetrating Cartesian
+  Kerr–Schild coordinates, with dimensionless charge `0 <= |Q|/M <= 0.998`, a
+  stationary-observer camera, charged circular-orbit disk kinematics, and its
+  own concrete SPIR-V fragment pipeline. Its exact factorized Hamiltonian flow
+  is also shared by host science and Vulkan and tested against automatic
+  differentiation. `Q = 0` reduces to Schwarzschild.
 - Backward propagation of each render ray in Cartesian Kerr-Schild coordinates.
   Boyer–Lindquist coordinates are used to construct the paper-inspired observer
   and to recover a disk azimuth, but the active renderer has no
@@ -45,10 +51,10 @@ and the metric/theory extension workflow.
   vectors, covectors, variance-aware Eigen tensors, generic connections and
   curvature, and Boost.Numeric.Odeint integration policies. The canonical
   Slang metric and flow are exposed to that layer through typed host adapters.
-- A host metric registry. Its `kerr-schild` entry uses the generated canonical
-  Slang metric; Minkowski, Schwarzschild, and Boyer–Lindquist Kerr remain C++
-  reference/validation models. Registering a host metric does not implicitly
-  create a Vulkan pipeline.
+- A host metric registry. Its `kerr-schild` and `reissner-nordstrom` entries use
+  generated canonical Slang metrics; Minkowski, Schwarzschild, and
+  Boyer–Lindquist Kerr remain C++ reference/validation models. Registering a
+  host metric does not implicitly create a Vulkan pipeline.
 - A thin volumetric, marginally optically thick disk whose procedural filament
   field drives both emission and extinction, following the approaches
   summarized in Appendix A.6.
@@ -151,16 +157,15 @@ the canonical physics modules or active fragment pipeline.
 | `F1` | Show or hide the parameter menu |
 | `U` | Show or hide this process's CPU/GPU statistics overlay |
 | Arrow keys | Reframe the black hole in the virtual lens |
-| `[` / `]` | Decrease or increase `a/M` between -0.998 and 0.998 |
+| `[` / `]` | Decrease or increase the selected metric's spin or charge |
 | `-` / `=` | Decrease or increase exposure |
 | `Esc` | Quit |
 
-The in-window menu exposes camera geometry and roll, spin, disk dimensions and
-temperature, exposure, relativistic shifts, animation state, an adjustable
-5–60 FPS limit, and three ray-integration quality presets. The title mirrors a
-frequently changed subset: exposure, spin, framing shift, frequency-shift
-state, FPS cap, and pause state. ImGui captures keyboard and mouse input while
-a widget is active, so editing a slider does not trigger renderer shortcuts.
+The in-window menu exposes a Kerr/Reissner–Nordström selector, spin or charge,
+camera geometry and roll, disk dimensions and temperature, exposure,
+relativistic shifts, animation state, an adjustable 5–60 FPS limit, and three
+ray-integration quality presets. Changing spacetime rebuilds only the concrete
+ray pipeline and preserves the rest of the scene.
 
 ### Windowless snapshot
 
@@ -171,6 +176,7 @@ reproducible stills, remote machines, and shader validation:
 ```sh
 bazel build //:gargantua_headless
 bazel run //:gargantua_headless -- "$PWD/gargantua.png" 1000 459 2
+bazel run //:gargantua_headless -- "$PWD/rn.png" 1000 459 2 reissner-nordstrom 0.8
 ```
 
 On an NVIDIA Optimus laptop, apply the same NVIDIA selection preset:
@@ -179,13 +185,12 @@ On an NVIDIA Optimus laptop, apply the same NVIDIA selection preset:
 bazel run --config=nvidia //:gargantua_headless -- "$PWD/gargantua.png" 1000 459 2
 ```
 
-The output path, width, height, and supersampling factor are optional; the
-defaults are `gargantua.ppm`, 1000, 459, and 1. The dimensions match the aspect
-of the paper's embedded Figure 15(a). Supersampling accepts factors from 1 to
-8: factor 2 traces four rays per output pixel, and factor 4 traces sixteen. The
-larger Vulkan image is reduced in linear light before being encoded back to
-sRGB at 16 bits per channel, preserving thin photon rings and disk filaments
-without dark colour fringes.
+The output path, width, height, supersampling factor, spacetime, and active
+metric parameter are optional. The spacetime is `kerr` or
+`reissner-nordstrom` (also `rn`); its final value is spin or charge. Defaults
+are `gargantua.ppm`, 1000, 459, 1, Kerr, and `a/M = 0.6`. RN defaults to
+`Q/M = 0.8` when selected without a charge. Supersampling accepts factors from
+1 to 8.
 
 ### Tests and host probe
 
@@ -194,10 +199,10 @@ bazel test //:tests
 bazel run //:gargantua_physics_probe -- kerr-schild
 ```
 
-The suite checks the generated double-precision Slang metric against an
-independent C++ oracle and checks the exact factorized Kerr flow against both
-finite differences of the scalar Hamiltonian and its reverse-mode automatic
-reference. It also covers tensor variance, connections and curvature,
+The suite checks the generated double-precision Slang metrics and checks the
+exact factorized Kerr and Reissner–Nordström flows against their scalar
+Hamiltonians and reverse-mode automatic references. It also covers the
+uncharged Schwarzschild limit, tensor variance, connections and curvature,
 Hamiltonian invariants, adaptive integration, scene behaviour, 16-bit output,
 and the reflected 64-byte C++/Slang push-constant contract. The active SPIR-V
 fragment is compiled as an input to the shader-interface test. A compile-only
@@ -272,18 +277,17 @@ protect that ABI.
 ## Code map
 
 - `src/physics/slang/` is the canonical, cross-target physics engine.
-  `PhysicsTypes.slang`, `Metric.slang`, `KerrSchild.slang`,
-  `Hamiltonian.slang`, `CanonicalFlow.slang`, `KerrSchildDynamics.slang`, and
-  `KerrCoordinates.slang` own the shared types, equations, transforms,
-  canonical-flow interface, optimized Kerr flow, and RK4 step.
+  `KerrSchild*.slang` and `ReissnerNordstrom*.slang` own the two production
+  metrics, optimized flows, and camera/chart transforms; the remaining core
+  modules own shared types, Hamiltonians, the flow interface, and RK4.
 - `src/physics/canonical_engine.*` and
   `src/physics/dynamics/canonical_systems.*` are thin typed C++ adapters over
   generated double-precision Slang exports.
 - The remaining C++ files in `src/physics/` supply Eigen tensor/curvature
   analysis, Boost.Odeint policies, registries, and validation models. They do
-  not define the active renderer's Kerr equations.
-- `shaders/black_hole.slang` is the active fragment entry. It instantiates the
-  canonical `KerrSchildHamiltonianSystem` and owns ray termination, disk
+  not define the active renderer's production equations.
+- `shaders/black_hole.slang` supplies separate Kerr and
+  Reissner–Nordström fragment entries over shared ray termination, disk
   transfer, palette, and tone mapping.
 - `shaders/fullscreen.slang` is the active fullscreen vertex entry, and
   `shaders/quartic_dispersion_probe.slang` is a compile-only GPU fixture for the

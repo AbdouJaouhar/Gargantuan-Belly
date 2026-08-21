@@ -28,13 +28,22 @@ uint32_t scaledDimension(uint32_t value, uint32_t scale, const char *name) {
 
 OffscreenRenderer::OffscreenRenderer(const char *argv0, uint32_t outputWidth,
                                      uint32_t outputHeight,
-                                     uint32_t supersample)
+                                     uint32_t supersample,
+                                     scene::SpacetimeModel spacetimeModel,
+                                     float metricParameter)
     : outputWidth_(outputWidth), outputHeight_(outputHeight),
       supersample_(supersample),
       width_(scaledDimension(outputWidth, supersample, "width")),
       height_(scaledDimension(outputHeight, supersample, "height")) {
   resolveRunfiles(argv0);
   resetScene();
+  scene_.spacetime.model = spacetimeModel;
+  if (spacetimeModel == scene::SpacetimeModel::Kerr) {
+    scene_.spacetime.spin = metricParameter;
+  } else {
+    scene_.spacetime.charge = metricParameter;
+  }
+  scene::constrainDiskRadii(scene_);
 }
 
 OffscreenRenderer::~OffscreenRenderer() { cleanup(); }
@@ -65,9 +74,12 @@ void OffscreenRenderer::resolveRunfiles(const char *argv0) {
 
   vertexShaderPath_ =
       runfiles_->Rlocation("gargantua/shaders/fullscreen.vert.spv");
-  fragmentShaderPath_ =
+  kerrFragmentShaderPath_ =
       runfiles_->Rlocation("gargantua/shaders/black_hole.frag.spv");
-  if (vertexShaderPath_.empty() || fragmentShaderPath_.empty()) {
+  reissnerNordstromFragmentShaderPath_ =
+      runfiles_->Rlocation("gargantua/shaders/reissner_nordstrom.frag.spv");
+  if (vertexShaderPath_.empty() || kerrFragmentShaderPath_.empty() ||
+      reissnerNordstromFragmentShaderPath_.empty()) {
     throw std::runtime_error(
         "Could not resolve the compiled shaders through Bazel runfiles");
   }

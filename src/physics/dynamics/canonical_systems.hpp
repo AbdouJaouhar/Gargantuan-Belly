@@ -23,6 +23,21 @@ private:
   canonical::KerrSchildEngine engine_;
 };
 
+class CanonicalReissnerNordstromSystem final
+    : public HamiltonianSystem<KerrSchildCartesianChart> {
+public:
+  explicit CanonicalReissnerNordstromSystem(double mass = 1.0,
+                                            double charge = 0.0);
+
+  scalar_type hamiltonian(const State &state,
+                          scalar_type affineParameter = 0.0) const override;
+  Derivative derivative(const State &state,
+                        scalar_type affineParameter = 0.0) const override;
+
+private:
+  canonical::ReissnerNordstromEngine engine_;
+};
+
 class CanonicalQuarticDispersionSystem final
     : public HamiltonianSystem<CartesianChart> {
 public:

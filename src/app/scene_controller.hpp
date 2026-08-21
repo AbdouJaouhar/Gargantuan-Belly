@@ -33,6 +33,7 @@ public:
   void setFrameLimitEnabled(bool enabled) { frameLimitEnabled_ = enabled; }
   void setFrameLimitFps(int fps);
   void setPreviewQuality(PreviewQuality quality);
+  void setSpacetimeModel(scene::SpacetimeModel model);
   bool consumePipelineRebuildRequest();
   static void printHelp();
 

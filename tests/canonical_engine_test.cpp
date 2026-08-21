@@ -16,6 +16,7 @@ using gargantua::physics::Point;
 using gargantua::physics::canonical::KerrSchildEngine;
 using gargantua::physics::canonical::PhaseState;
 using gargantua::physics::canonical::QuarticDispersionEngine;
+using gargantua::physics::canonical::ReissnerNordstromEngine;
 
 bool expectNear(const double actual, const double expected,
                 const double tolerance, const std::string &label) {
@@ -133,6 +134,55 @@ bool testOptimizedKerrFlowAgainstAutomaticReference() {
   return success;
 }
 
+bool testReissnerNordstromMetricAndFlow() {
+  constexpr double mass = 1.0;
+  constexpr double charge = 0.8;
+  constexpr double radius = 6.0;
+  const ReissnerNordstromEngine charged{mass, charge};
+  const auto metric = charged.metric({0.0, 0.0, 0.0, radius});
+  const double f = 2.0 * mass / radius - charge * charge / (radius * radius);
+  bool success = metric.defined;
+  success &= expectNear(metric.radius, radius, 0.0,
+                        "Reissner-Nordstrom radial coordinate");
+  success &= expectNear(metric.covariant[0], -1.0 + f, 2.0e-14,
+                        "Reissner-Nordstrom g_TT");
+
+  const ReissnerNordstromEngine uncharged{mass, 0.0};
+  const KerrSchildEngine schwarzschild{mass, 0.0};
+  const std::array<double, 4> point{0.2, 4.0, -1.0, 3.0};
+  const auto unchargedMetric = uncharged.metric(point);
+  const auto schwarzschildMetric = schwarzschild.metric(point);
+  for (std::size_t index = 0; index < 16; ++index) {
+    success &= expectNear(unchargedMetric.covariant[index],
+                          schwarzschildMetric.covariant[index], 2.0e-14,
+                          "uncharged Reissner-Nordstrom metric");
+    success &= expectNear(unchargedMetric.contravariant[index],
+                          schwarzschildMetric.contravariant[index], 2.0e-14,
+                          "uncharged Reissner-Nordstrom inverse");
+  }
+
+  PhaseState state;
+  state.position = {0.0, 7.0, 1.5, -2.0};
+  state.momentum = {-1.0, 0.74, 0.21, -0.39};
+  const auto optimized = charged.phase(state);
+  const auto automatic = charged.phaseAutomaticReference(state);
+  success &= expectNear(optimized.hamiltonian, automatic.hamiltonian, 0.0,
+                        "Reissner-Nordstrom Hamiltonian");
+  for (std::size_t axis = 0; axis < 4; ++axis) {
+    success &=
+        expectNear(optimized.positionRate[axis], automatic.positionRate[axis],
+                   2.0e-12, "Reissner-Nordstrom position rate");
+    success &=
+        expectNear(optimized.momentumRate[axis], automatic.momentumRate[axis],
+                   2.0e-12, "Reissner-Nordstrom momentum rate");
+  }
+
+  const PhaseState next = charged.rk4(state, -1.0e-3);
+  success &= expectNear(charged.phase(next).hamiltonian, optimized.hamiltonian,
+                        2.0e-13, "Reissner-Nordstrom RK4 Hamiltonian drift");
+  return success;
+}
+
 bool testSharedModifiedDispersionFlow() {
   const QuarticDispersionEngine engine{0.1};
   PhaseState state;
@@ -169,6 +219,7 @@ int main() {
   return testSharedMetricAgainstIndependentOracle() &&
                  testHamiltonianGeneratedFlowAndStep() &&
                  testOptimizedKerrFlowAgainstAutomaticReference() &&
+                 testReissnerNordstromMetricAndFlow() &&
                  testSharedModifiedDispersionFlow() &&
                  testCanonicalMetricDomain()
              ? EXIT_SUCCESS

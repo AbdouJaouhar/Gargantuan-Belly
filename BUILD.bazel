@@ -92,6 +92,7 @@ cc_library(
     ],
     data = [
         "//shaders:black_hole_frag_spv",
+        "//shaders:reissner_nordstrom_frag_spv",
         "//shaders:fullscreen_vert_spv",
     ],
     copts = COPTS,
@@ -141,6 +142,7 @@ cc_library(
     ],
     data = [
         "//shaders:black_hole_frag_spv",
+        "//shaders:reissner_nordstrom_frag_spv",
         "//shaders:fullscreen_vert_spv",
     ],
     copts = COPTS,
@@ -303,6 +305,7 @@ cc_test(
         "src/rendering/gpu_parameters.hpp",
         "//shaders:black_hole.slang",
         "//shaders:black_hole_frag_reflection",
+        "//shaders:reissner_nordstrom_frag_reflection",
     ],
     copts = COPTS,
     size = "small",

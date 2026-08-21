@@ -3,6 +3,7 @@
 #include "src/physics/dynamics/geodesic_integrator.hpp"
 #include "src/physics/dynamics/metric_geodesic.hpp"
 #include "src/physics/metrics/canonical_kerr_schild.hpp"
+#include "src/physics/metrics/canonical_reissner_nordstrom.hpp"
 #include "src/physics/metrics/minkowski.hpp"
 #include "src/physics/metrics/schwarzschild.hpp"
 
@@ -123,6 +124,30 @@ bool testKerrSchildAxisStart() {
   return success;
 }
 
+bool testReissnerNordstromAxisStart() {
+  const CanonicalReissnerNordstromMetric metric{1.0, 0.8};
+  const CanonicalReissnerNordstromSystem system{1.0, 0.8};
+  PhaseSpaceState<KerrSchildCartesianChart> state;
+  state.position = {0.0, 0.0, 0.0, 10.0};
+
+  const auto jet = metricJet(metric, state.position);
+  Vector<KerrSchildCartesianChart> tangent;
+  tangent[0] = 1.0 / std::sqrt(-jet.covariant(0, 0));
+  tangent[1] = 1.0;
+  state.momentum = lower(jet.covariant, tangent);
+  const double initialHamiltonian = system.hamiltonian(state);
+
+  const auto result = integrateHamiltonianTrajectory(system, state, 0.0, 0.5,
+                                                     accurateOptions());
+  bool success = expectNear(initialHamiltonian, 0.0, 2.0e-14,
+                            "Reissner-Nordstrom null initialization");
+  success &= expectNear(result.finalHamiltonian, 0.0, 2.0e-10,
+                        "Reissner-Nordstrom null Hamiltonian");
+  success &= result.integration.reachedFinalTime();
+  success &= state.toEigen().allFinite();
+  return success;
+}
+
 bool testModifiedHamiltonianPlugin() {
   const CanonicalQuarticDispersionSystem system{0.1};
   PhaseSpaceState<CartesianChart> state;
@@ -193,6 +218,7 @@ bool testTypedObserverStop() {
 int main() {
   return testMinkowskiNullRay() && testSchwarzschildRadialNullRay() &&
                  testKerrSchildAxisStart() && testModifiedHamiltonianPlugin() &&
+                 testReissnerNordstromAxisStart() &&
                  testAutomaticHamiltonianCanonicalSigns() &&
                  testTypedObserverStop()
              ? EXIT_SUCCESS

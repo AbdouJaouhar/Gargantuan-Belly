@@ -1,6 +1,7 @@
 #include "src/physics/connection.hpp"
 #include "src/physics/curvature.hpp"
 #include "src/physics/metric_registry.hpp"
+#include "src/physics/metrics/canonical_reissner_nordstrom.hpp"
 #include "src/physics/metrics/kerr.hpp"
 #include "src/physics/metrics/kerr_schild.hpp"
 #include "src/physics/metrics/minkowski.hpp"
@@ -24,6 +25,7 @@
 namespace {
 
 using gargantua::physics::BoyerLindquistChart;
+using gargantua::physics::CanonicalReissnerNordstromMetric;
 using gargantua::physics::CartesianChart;
 using gargantua::physics::ConnectionCoefficients;
 using gargantua::physics::contract;
@@ -489,6 +491,46 @@ bool testKerrSchildAxisAndHorizon() {
   return success;
 }
 
+bool testReissnerNordstromCanonicalMetric() {
+  constexpr double mass = 1.0;
+  constexpr double charge = 0.8;
+  const double horizon = mass + std::sqrt(mass * mass - charge * charge);
+  const CanonicalReissnerNordstromMetric metric{mass, charge};
+  const Point<KerrSchildCartesianChart> point{0.0, 0.0, 0.0, horizon};
+  const auto jet = metric.metricJet(point.eigen());
+  const auto connection = leviCivitaConnection(jet);
+
+  bool success = expectInverse(jet, 2.0e-12, "Reissner-Nordstrom");
+  success &=
+      expectSymmetricConnection(connection, 2.0e-12, "Reissner-Nordstrom");
+  success &=
+      expectMetricCompatibility(jet, connection, 2.0e-11, "Reissner-Nordstrom");
+  success &= expectNear(jet.covariant.asMatrix().determinant(), -1.0, 2.0e-12,
+                        "Reissner-Nordstrom determinant");
+  success &= metric.isDefined(point.eigen());
+
+  constexpr double sampleRadius = 10.0;
+  const auto secondJet = metric.metricSecondJet(
+      Point<KerrSchildCartesianChart>{0.0, 0.0, 0.0, sampleRadius}.eigen());
+  const auto tensors = gargantua::physics::curvature(secondJet);
+  const double actualKretschmann =
+      gargantua::physics::kretschmannScalar(secondJet, tensors.riemann);
+  const double expectedKretschmann =
+      48.0 * mass * mass / std::pow(sampleRadius, 6.0) -
+      96.0 * mass * charge * charge / std::pow(sampleRadius, 7.0) +
+      56.0 * std::pow(charge, 4.0) / std::pow(sampleRadius, 8.0);
+  success &= expectNear(tensors.ricciScalar, 0.0, 2.0e-10,
+                        "Reissner-Nordstrom Ricci scalar");
+  success &= expectNear(actualKretschmann, expectedKretschmann, 2.0e-10,
+                        "Reissner-Nordstrom Kretschmann scalar");
+  if (!(tensors.einstein.eigen().cwiseAbs().maxCoeff() > 1.0e-6)) {
+    std::cerr
+        << "charged spacetime should have electromagnetic stress energy\n";
+    success = false;
+  }
+  return success;
+}
+
 bool testAutomaticCurvature() {
   const MinkowskiMetric minkowski;
   const Point<CartesianChart> flatPoint{1.0, 2.0, 3.0, 4.0};
@@ -529,7 +571,8 @@ bool testMetricRegistry() {
   auto registry = gargantua::physics::makeStandardMetricRegistry();
   bool success = true;
   if (!registry.contains("minkowski") || !registry.contains("kerr-schild") ||
-      registry.descriptors().size() != 4U) {
+      !registry.contains("reissner-nordstrom") ||
+      registry.descriptors().size() != 5U) {
     std::cerr << "standard metric registry is incomplete\n";
     success = false;
   }
@@ -538,6 +581,11 @@ bool testMetricRegistry() {
   success &= expectNear(metric->covariantMetric({0.0, 0.0, 0.0, 4.0})(0, 0),
                         -1.0 + 256.0 / 260.0, 2.0e-13,
                         "registry parameters reach factory");
+  const auto charged = registry.create(
+      "reissner-nordstrom", MetricParameters{{"mass", 1.0}, {"charge", 0.8}});
+  success &= expectNear(charged->covariantMetric({0.0, 0.0, 0.0, 4.0})(0, 0),
+                        -1.0 + 0.5 - 0.04, 2.0e-13,
+                        "Reissner-Nordstrom registry parameters reach factory");
 
   // Extremal and superextremal Kerr metrics remain useful theories even though
   // they do not describe an ordinary subextremal black hole.
@@ -689,6 +737,7 @@ int main() {
   success &= testSchwarzschild();
   success &= testKerr();
   success &= testKerrSchildAxisAndHorizon();
+  success &= testReissnerNordstromCanonicalMetric();
   success &= testAutomaticCurvature();
   success &= testMetricRegistry();
   success &= testUserMetricNeedsOnlyCovariantComponents();

@@ -6,6 +6,7 @@ import Metric;
 import ModifiedDispersion;
 import PhysicsConfig;
 import PhysicsTypes;
+import ReissnerNordstrom;
 
 struct HostMetricInput
 {
@@ -63,6 +64,30 @@ struct HostQuarticPhaseInput
     Real momentum[4];
 }
 
+struct HostChargedMetricInput
+{
+    Real mass;
+    Real charge;
+    Real position[4];
+}
+
+struct HostChargedPhaseInput
+{
+    Real mass;
+    Real charge;
+    Real position[4];
+    Real momentum[4];
+}
+
+struct HostChargedStepInput
+{
+    Real mass;
+    Real charge;
+    Real stepSize;
+    Real position[4];
+    Real momentum[4];
+}
+
 [Differentiable]
 CovariantTensor2 evaluateCovariantMetric<M : IMetric>(
     no_diff M metric,
@@ -90,7 +115,27 @@ KerrSchildMetric makeHostMetric(Real mass, Real spin)
     return metric;
 }
 
+ReissnerNordstromMetric makeHostChargedMetric(Real mass, Real charge)
+{
+    ReissnerNordstromMetric metric;
+    metric.mass = mass;
+    metric.charge = charge;
+    return metric;
+}
+
 PhaseSpaceState makeHostState(HostPhaseInput input)
+{
+    PhaseSpaceState state;
+    [ForceUnroll]
+    for (int index = 0; index < 4; ++index)
+    {
+        state.position.components[index] = input.position[index];
+        state.momentum.components[index] = input.momentum[index];
+    }
+    return state;
+}
+
+PhaseSpaceState makeHostChargedState(HostChargedPhaseInput input)
 {
     PhaseSpaceState state;
     [ForceUnroll]
@@ -245,6 +290,66 @@ export __extern_cpp void gargantua_kerr_schild_rk4(
     system.metric = makeHostMetric(input.mass, input.spin);
     PhaseSpaceState next = integrateCanonicalRk4(
         system, makeHostState(phaseInput), input.stepSize);
+    [ForceUnroll]
+    for (int index = 0; index < 4; ++index)
+    {
+        output.position[index] = next.position.components[index];
+        output.momentum[index] = next.momentum.components[index];
+    }
+}
+
+export __extern_cpp void gargantua_reissner_nordstrom_metric(
+    HostChargedMetricInput input,
+    out HostMetricOutput output)
+{
+    vector<Real, 4> position;
+    [ForceUnroll]
+    for (int index = 0; index < 4; ++index)
+        position[index] = input.position[index];
+    writeHostMetric(
+        makeHostChargedMetric(input.mass, input.charge), position, output);
+}
+
+export __extern_cpp void gargantua_reissner_nordstrom_phase(
+    HostChargedPhaseInput input,
+    out HostPhaseOutput output)
+{
+    ReissnerNordstromHamiltonianSystem system;
+    system.metric = makeHostChargedMetric(input.mass, input.charge);
+    writeHostPhase(system, makeHostChargedState(input), output);
+}
+
+export __extern_cpp void
+gargantua_reissner_nordstrom_phase_automatic_reference(
+    HostChargedPhaseInput input,
+    out HostPhaseOutput output)
+{
+    MetricHamiltonianSystem<ReissnerNordstromMetric> metricSystem;
+    metricSystem.metric = makeHostChargedMetric(input.mass, input.charge);
+    AutomaticCanonicalFlowSystem<
+        MetricHamiltonianSystem<ReissnerNordstromMetric>> system;
+    system.system = metricSystem;
+    writeHostPhase(system, makeHostChargedState(input), output);
+}
+
+export __extern_cpp void gargantua_reissner_nordstrom_rk4(
+    HostChargedStepInput input,
+    out HostStepOutput output)
+{
+    HostChargedPhaseInput phaseInput;
+    phaseInput.mass = input.mass;
+    phaseInput.charge = input.charge;
+    [ForceUnroll]
+    for (int index = 0; index < 4; ++index)
+    {
+        phaseInput.position[index] = input.position[index];
+        phaseInput.momentum[index] = input.momentum[index];
+    }
+
+    ReissnerNordstromHamiltonianSystem system;
+    system.metric = makeHostChargedMetric(input.mass, input.charge);
+    PhaseSpaceState next = integrateCanonicalRk4(
+        system, makeHostChargedState(phaseInput), input.stepSize);
     [ForceUnroll]
     for (int index = 0; index < 4; ++index)
     {

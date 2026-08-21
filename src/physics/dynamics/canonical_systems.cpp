@@ -38,14 +38,29 @@ CanonicalKerrSchildSystem::CanonicalKerrSchildSystem(const double mass,
                                                      const double spin)
     : engine_(mass, spin) {}
 
-CanonicalKerrSchildSystem::scalar_type
-CanonicalKerrSchildSystem::hamiltonian(
+CanonicalKerrSchildSystem::scalar_type CanonicalKerrSchildSystem::hamiltonian(
     const State &state, const scalar_type /*affineParameter*/) const {
   return engine_.phase(toCanonical(state)).hamiltonian;
 }
 
-CanonicalKerrSchildSystem::Derivative
-CanonicalKerrSchildSystem::derivative(
+CanonicalKerrSchildSystem::Derivative CanonicalKerrSchildSystem::derivative(
+    const State &state, const scalar_type /*affineParameter*/) const {
+  return toTypedDerivative<KerrSchildCartesianChart>(
+      engine_.phase(toCanonical(state)));
+}
+
+CanonicalReissnerNordstromSystem::CanonicalReissnerNordstromSystem(
+    const double mass, const double charge)
+    : engine_(mass, charge) {}
+
+CanonicalReissnerNordstromSystem::scalar_type
+CanonicalReissnerNordstromSystem::hamiltonian(
+    const State &state, const scalar_type /*affineParameter*/) const {
+  return engine_.phase(toCanonical(state)).hamiltonian;
+}
+
+CanonicalReissnerNordstromSystem::Derivative
+CanonicalReissnerNordstromSystem::derivative(
     const State &state, const scalar_type /*affineParameter*/) const {
   return toTypedDerivative<KerrSchildCartesianChart>(
       engine_.phase(toCanonical(state)));

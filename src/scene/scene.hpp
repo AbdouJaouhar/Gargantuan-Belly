@@ -7,6 +7,8 @@ namespace gargantua::scene {
 
 inline constexpr float kMinimumKerrSpin = -0.998f;
 inline constexpr float kMaximumKerrSpin = 0.998f;
+inline constexpr float kMinimumReissnerNordstromCharge = 0.0f;
+inline constexpr float kMaximumReissnerNordstromCharge = 0.998f;
 inline constexpr float kDiskHorizonClearance = 1.051f;
 inline constexpr float kMinimumDiskWidth = 0.1f;
 
@@ -19,8 +21,15 @@ struct Camera {
   float rollDegrees = 0.0f;
 };
 
-struct KerrSpacetime {
+enum class SpacetimeModel {
+  Kerr,
+  ReissnerNordstrom,
+};
+
+struct Spacetime {
+  SpacetimeModel model = SpacetimeModel::Kerr;
   float spin = 0.0f;
+  float charge = 0.0f;
 };
 
 struct AccretionDisk {
@@ -39,7 +48,7 @@ struct Appearance {
 // belong here.
 struct Scene {
   Camera camera{};
-  KerrSpacetime spacetime{};
+  Spacetime spacetime{};
   AccretionDisk disk{};
   Appearance appearance{};
 };
@@ -48,9 +57,20 @@ inline float clampedKerrSpin(float spin) {
   return std::clamp(spin, kMinimumKerrSpin, kMaximumKerrSpin);
 }
 
-inline float outerHorizonRadius(const KerrSpacetime &spacetime) {
-  const float spin = clampedKerrSpin(spacetime.spin);
-  return 1.0f + std::sqrt(std::max(1.0f - spin * spin, 0.0f));
+inline float clampedReissnerNordstromCharge(float charge) {
+  return std::clamp(charge, kMinimumReissnerNordstromCharge,
+                    kMaximumReissnerNordstromCharge);
+}
+
+inline float activeMetricParameter(const Spacetime &spacetime) {
+  return spacetime.model == SpacetimeModel::Kerr
+             ? clampedKerrSpin(spacetime.spin)
+             : clampedReissnerNordstromCharge(spacetime.charge);
+}
+
+inline float outerHorizonRadius(const Spacetime &spacetime) {
+  const float parameter = activeMetricParameter(spacetime);
+  return 1.0f + std::sqrt(std::max(1.0f - parameter * parameter, 0.0f));
 }
 
 inline float minimumDiskInnerRadius(const Scene &scene) {

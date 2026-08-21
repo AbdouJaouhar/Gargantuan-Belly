@@ -43,10 +43,23 @@ void SceneController::setPaused(bool paused) {
 }
 
 void SceneController::resetToFigure15a() {
+  const scene::SpacetimeModel previousModel = scene_.spacetime.model;
   scene_ = scene::figure15aScene();
+  if (scene_.spacetime.model != previousModel) {
+    pipelineRebuildRequested_ = true;
+  }
   paused_ = false;
   pausedTime_ = 0.0f;
   animationStart_ = std::chrono::steady_clock::now();
+}
+
+void SceneController::setSpacetimeModel(scene::SpacetimeModel model) {
+  if (model == scene_.spacetime.model) {
+    return;
+  }
+  scene_.spacetime.model = model;
+  scene::constrainDiskRadii(scene_);
+  pipelineRebuildRequested_ = true;
 }
 
 void SceneController::setPreviewQuality(PreviewQuality quality) {
@@ -104,13 +117,23 @@ void SceneController::handleKey(GLFWwindow *window, int key, int action) {
         std::min(2.0f, scene_.camera.verticalShift + 0.02f);
     changed = true;
   } else if (key == GLFW_KEY_LEFT_BRACKET) {
-    scene_.spacetime.spin =
-        std::max(scene::kMinimumKerrSpin, scene_.spacetime.spin - 0.02f);
+    if (scene_.spacetime.model == scene::SpacetimeModel::Kerr) {
+      scene_.spacetime.spin =
+          std::max(scene::kMinimumKerrSpin, scene_.spacetime.spin - 0.02f);
+    } else {
+      scene_.spacetime.charge = std::max(scene::kMinimumReissnerNordstromCharge,
+                                         scene_.spacetime.charge - 0.02f);
+    }
     scene::constrainDiskRadii(scene_);
     changed = true;
   } else if (key == GLFW_KEY_RIGHT_BRACKET) {
-    scene_.spacetime.spin =
-        std::min(scene::kMaximumKerrSpin, scene_.spacetime.spin + 0.02f);
+    if (scene_.spacetime.model == scene::SpacetimeModel::Kerr) {
+      scene_.spacetime.spin =
+          std::min(scene::kMaximumKerrSpin, scene_.spacetime.spin + 0.02f);
+    } else {
+      scene_.spacetime.charge = std::min(scene::kMaximumReissnerNordstromCharge,
+                                         scene_.spacetime.charge + 0.02f);
+    }
     scene::constrainDiskRadii(scene_);
     changed = true;
   } else if (key == GLFW_KEY_MINUS) {
@@ -129,10 +152,13 @@ void SceneController::handleKey(GLFWwindow *window, int key, int action) {
 
 void SceneController::updateWindowTitle(GLFWwindow *window) const {
   std::ostringstream title;
-  title << std::fixed << std::setprecision(2) << "Gargantua | exposure "
-        << scene_.appearance.exposure << " | spin " << scene_.spacetime.spin
-        << " | shift " << scene_.camera.horizontalShift << ", "
-        << scene_.camera.verticalShift << " | Doppler "
+  const bool kerr = scene_.spacetime.model == scene::SpacetimeModel::Kerr;
+  title << std::fixed << std::setprecision(2) << "Gargantua | "
+        << (kerr ? "Kerr" : "Reissner-Nordstrom") << " | exposure "
+        << scene_.appearance.exposure << (kerr ? " | spin " : " | charge ")
+        << scene::activeMetricParameter(scene_.spacetime) << " | shift "
+        << scene_.camera.horizontalShift << ", " << scene_.camera.verticalShift
+        << " | Doppler "
         << (scene_.appearance.frequencyShiftsEnabled ? "on" : "off")
         << " | FPS cap ";
   if (frameLimitEnabled_) {
@@ -155,7 +181,7 @@ void SceneController::printHelp() {
             << "  F1        show/hide the parameter menu\n"
             << "  U         show/hide CPU and GPU utilization\n"
             << "  Arrows    move the lens framing (horizontal/vertical)\n"
-            << "  [ / ]     decrease/increase dimensionless spin\n"
+            << "  [ / ]     decrease/increase spin or charge\n"
             << "  - / =     decrease/increase exposure\n";
 }
 

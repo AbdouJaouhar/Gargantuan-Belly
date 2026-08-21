@@ -49,6 +49,8 @@ int main(int argc, char **argv) {
       readFile(runfiles->Rlocation("gargantua/shaders/black_hole.slang"));
   const std::string reflection = readFile(runfiles->Rlocation(
       "gargantua/shaders/black_hole.frag.spv.reflection.json"));
+  const std::string chargedReflection = readFile(runfiles->Rlocation(
+      "gargantua/shaders/reissner_nordstrom.frag.spv.reflection.json"));
   const std::array<std::string_view, 4> cppBlocks{
       R"(
         struct GpuCameraParameters {
@@ -60,7 +62,7 @@ int main(int argc, char **argv) {
       )",
       R"(
         struct GpuBlackHoleParameters {
-          float spin = 0.0f;
+          float metricParameter = 0.0f;
           float diskInnerRadius = 0.0f;
           float diskOuterRadius = 0.0f;
           float diskTemperatureKelvin = 0.0f;
@@ -102,7 +104,7 @@ int main(int argc, char **argv) {
       )",
       R"(
         struct BlackHoleParameters {
-          float spin;
+          float metricParameter;
           float diskInnerRadius;
           float diskOuterRadius;
           float diskTemperatureKelvin;
@@ -133,8 +135,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  const std::string compactReflection = removeWhitespace(reflection);
-  const std::array<std::string_view, 16> reflectedLayout{
+  const std::array<std::string_view, 15> reflectedLayout{
       R"("name":"pc")",
       R"("kind":"pushConstantBuffer","index":0)",
       R"("name":"RenderParameters")",
@@ -150,16 +151,27 @@ int main(int argc, char **argv) {
       R"("kind":"uniform","value":64,"alignment":8)",
       R"("name":"kMaxGeodesicSteps","binding":{"kind":"specializationConstant","index":0)",
       R"("name":"kGeodesicStepScale","binding":{"kind":"specializationConstant","index":1)",
-      R"("name":"fragmentMain","stage":"fragment")",
   };
-  for (const std::string_view reflected : reflectedLayout) {
-    if (compactReflection.find(reflected) == std::string::npos) {
-      return EXIT_FAILURE;
+  for (const std::string &candidate : {reflection, chargedReflection}) {
+    const std::string compactReflection = removeWhitespace(candidate);
+    for (const std::string_view reflected : reflectedLayout) {
+      if (compactReflection.find(reflected) == std::string::npos) {
+        return EXIT_FAILURE;
+      }
     }
+  }
+  if (removeWhitespace(reflection)
+              .find(R"("name":"fragmentMain","stage":"fragment")") ==
+          std::string::npos ||
+      removeWhitespace(chargedReflection)
+              .find(
+                  R"("name":"reissnerNordstromFragmentMain","stage":"fragment")") ==
+          std::string::npos) {
+    return EXIT_FAILURE;
   }
 
   if (cpp.find("static_assert(sizeof(GpuRenderParameters) == 64)") ==
-          std::string::npos) {
+      std::string::npos) {
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;

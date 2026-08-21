@@ -126,9 +126,13 @@ void OffscreenRenderer::createRenderPass() {
 }
 
 void OffscreenRenderer::createPipeline() {
+  const std::string &fragmentShaderPath =
+      scene_.spacetime.model == scene::SpacetimeModel::Kerr
+          ? kerrFragmentShaderPath_
+          : reissnerNordstromFragmentShaderPath_;
   pipeline_ = gargantua::rendering::createFullscreenPipeline(
       device_, renderPass_, sizeof(GpuRenderParameters), vertexShaderPath_,
-      fragmentShaderPath_);
+      fragmentShaderPath);
 }
 
 void OffscreenRenderer::createFramebuffer() {

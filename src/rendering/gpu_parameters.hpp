@@ -15,7 +15,7 @@ struct GpuCameraParameters {
 };
 
 struct GpuBlackHoleParameters {
-  float spin = 0.0f;
+  float metricParameter = 0.0f;
   float diskInnerRadius = 0.0f;
   float diskOuterRadius = 0.0f;
   float diskTemperatureKelvin = 0.0f;

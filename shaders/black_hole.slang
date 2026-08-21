@@ -5,6 +5,8 @@ import KerrSchild;
 import KerrSchildDynamics;
 import PhysicsConfig;
 import PhysicsTypes;
+import ReissnerNordstrom;
+import ReissnerNordstromCoordinates;
 
 struct CameraParameters
 {
@@ -16,7 +18,7 @@ struct CameraParameters
 
 struct BlackHoleParameters
 {
-    float spin;
+    float metricParameter;
     float diskInnerRadius;
     float diskOuterRadius;
     float diskTemperatureKelvin;
@@ -231,17 +233,15 @@ float diskFrequencyShift(
 float3 diskEmission(
     float radius,
     float phi,
-    float spin,
-    float angularMomentum,
-    float observerEnergy,
+    float horizon,
+    float orbitalRate,
+    float frequencyShift,
     float edgeMask,
     out float materialDensity)
 {
-    float horizon = 1.0 + sqrt(max(1.0 - spin * spin, 0.0));
     float inner = max(pc.blackHole.diskInnerRadius, horizon * 1.05);
     float outer = max(pc.blackHole.diskOuterRadius, inner + 0.1);
     float radialCoordinate = (radius - inner) / max(outer - inner, 1.0e-4);
-    float orbitalRate = 1.0 / (pow(max(radius, 1.0), 1.5) + spin);
     float logRadius = log(max(radius / inner, 1.001));
 
     float diskTime = max(pc.time, 0.0);
@@ -285,8 +285,7 @@ float3 diskEmission(
     float intensityShift = 1.0;
     if (pc.options.frequencyShiftsEnabled > 0.5)
     {
-        shift = diskFrequencyShift(
-            radius, spin, angularMomentum, observerEnergy);
+        shift = frequencyShift;
         intensityShift = pow(shift, 3.0);
     }
 
@@ -340,7 +339,7 @@ KerrCameraRay makeCameraRay(float2 pixel, float spin)
 
 TraceResult traceKerrRay(float2 pixel)
 {
-    float spin = clamp(pc.blackHole.spin, -0.998, 0.998);
+    float spin = clamp(pc.blackHole.metricParameter, -0.998, 0.998);
     KerrCameraRay cameraRay = makeCameraRay(pixel, spin);
     PhaseSpaceState state = cameraRay.state;
     KerrSchildMetric metric;
@@ -416,12 +415,182 @@ TraceResult traceKerrRay(float2 pixel)
                 float samplePhi = kerrSchildBoyerLindquistAzimuth(
                     sampleState.position, 1.0, spin, sampleRadius);
                 float materialDensity;
+                float orbitalRate =
+                    1.0 / (pow(max(sampleRadius, 1.0), 1.5) + spin);
+                float frequencyShift = diskFrequencyShift(
+                    sampleRadius,
+                    spin,
+                    cameraRay.angularMomentum,
+                    cameraRay.observerEnergy);
                 float3 emission = diskEmission(
                     sampleRadius,
                     samplePhi,
-                    spin,
+                    horizon,
+                    orbitalRate,
+                    frequencyShift,
+                    edgeMask,
+                    materialDensity);
+                float density = verticalDensity * edgeMask * materialDensity;
+                float opacity = 1.0 - exp(-density * abs(affineStep) * 9.0);
+                result.radiance += result.transmittance * opacity * emission;
+                result.transmittance *= 1.0 - opacity;
+                if (result.transmittance < 0.008)
+                    break;
+            }
+        }
+
+        previousRadius = radius;
+        state = nextState;
+    }
+
+    float finalRadius = metric.radialCoordinate(state.position);
+    if (result.escaped < 0.5 && finalRadius > escapeRadius * 0.92)
+        result.escaped = 1.0;
+    return result;
+}
+
+float reissnerNordstromDiskFrequencyShift(
+    float radius,
+    float charge,
+    float angularMomentum,
+    float observerEnergy)
+{
+    float charge2 = charge * charge;
+    float orbitalRate = sqrt(max(radius - charge2, 0.0)) /
+        max(radius * radius, 1.0e-6);
+    float lapse2 = 1.0 - 2.0 / radius + charge2 / (radius * radius);
+    float normalization = lapse2 -
+        radius * radius * orbitalRate * orbitalRate;
+    float emitterEnergy = rsqrt(max(normalization, 1.0e-5)) *
+        (1.0 - orbitalRate * angularMomentum);
+    return clamp(observerEnergy / max(emitterEnergy, 1.0e-4), 0.18, 3.5);
+}
+
+ReissnerNordstromCameraRay makeReissnerNordstromCameraRay(
+    float2 pixel,
+    float charge)
+{
+    float2 screen = pixel * 2.0 - 1.0;
+    float aspect = pc.resolution.x / max(pc.resolution.y, 1.0);
+    screen = float2(
+        (screen.x - pc.camera.horizontalShift) * aspect,
+        screen.y - pc.options.verticalShift);
+    float roll = radians(pc.options.cameraRollDegrees);
+    float sineRoll = sin(roll);
+    float cosineRoll = cos(roll);
+    screen = float2(
+        cosineRoll * screen.x - sineRoll * screen.y,
+        sineRoll * screen.x + cosineRoll * screen.y);
+    float tangentHalfFov = tan(0.5 * radians(
+        clamp(pc.camera.verticalFovDegrees, 5.0, 100.0)));
+    float3 cameraDirection = normalize(float3(
+        -1.0,
+        screen.y * tangentHalfFov,
+        screen.x * tangentHalfFov));
+    float3 stationaryDirection = -cameraDirection;
+    float horizon = reissnerNordstromOuterHorizon(1.0, charge);
+    return makeReissnerNordstromStationaryRay(
+        max(pc.camera.radius, horizon * 1.025),
+        radians(clamp(pc.camera.inclinationDegrees, 2.0, 178.0)),
+        1.0,
+        charge,
+        stationaryDirection);
+}
+
+TraceResult traceReissnerNordstromRay(float2 pixel)
+{
+    float charge = clamp(pc.blackHole.metricParameter, 0.0, 0.998);
+    ReissnerNordstromCameraRay cameraRay =
+        makeReissnerNordstromCameraRay(pixel, charge);
+    PhaseSpaceState state = cameraRay.state;
+    ReissnerNordstromMetric metric;
+    metric.mass = 1.0;
+    metric.charge = charge;
+    ReissnerNordstromHamiltonianSystem system;
+    system.metric = metric;
+
+    float horizon = reissnerNordstromOuterHorizon(1.0, charge);
+    float inner = max(pc.blackHole.diskInnerRadius, horizon * 1.05);
+    float outer = max(pc.blackHole.diskOuterRadius, inner + 0.1);
+    float initialRadius = metric.radialCoordinate(state.position);
+    float escapeRadius = max(initialRadius * 1.45, outer * 2.5);
+    float previousRadius = initialRadius;
+
+    TraceResult result;
+    result.radiance = float3(0.0);
+    result.transmittance = 1.0;
+    result.escaped = 0.0;
+
+    for (int stepIndex = 0; stepIndex < kMaxGeodesicSteps; ++stepIndex)
+    {
+        float radius = metric.radialCoordinate(state.position);
+        if (radius <= horizon * 1.008 || isnan(radius) || isinf(radius))
+            break;
+        if (stepIndex > 8 && radius >= escapeRadius && radius > previousRadius)
+        {
+            result.escaped = 1.0;
+            break;
+        }
+
+        float distanceToHorizon = radius - horizon;
+        float stepMagnitude = clamp(
+            0.038 * kGeodesicStepScale * radius,
+            0.018 * kGeodesicStepScale,
+            0.78 * kGeodesicStepScale);
+        stepMagnitude = min(
+            stepMagnitude, max(0.004, distanceToHorizon * 0.20));
+        float affineStep = -stepMagnitude;
+        PhaseSpaceState nextState =
+            integrateCanonicalRk4(system, state, affineStep);
+
+        float startHeight = state.position.components[3];
+        float endHeight = nextState.position.components[3];
+        float heightDelta = startHeight - endHeight;
+        float segmentFraction = 0.5;
+        if (abs(heightDelta) > 1.0e-6)
+            segmentFraction = clamp(startHeight / heightDelta, 0.0, 1.0);
+
+        PhaseSpaceState sampleState;
+        sampleState.position.components = lerp(
+            state.position.components,
+            nextState.position.components,
+            segmentFraction);
+        sampleState.momentum.components = lerp(
+            state.momentum.components,
+            nextState.momentum.components,
+            segmentFraction);
+        float sampleRadius = metric.radialCoordinate(sampleState.position);
+        if (sampleRadius > inner - 0.6 && sampleRadius < outer + 0.8)
+        {
+            float height = lerp(startHeight, endHeight, segmentFraction);
+            float scaleHeight = 0.035 + 0.009 * sampleRadius;
+            if (abs(height) < 4.5 * scaleHeight)
+            {
+                float verticalDensity = exp(
+                    -pow(abs(height) / scaleHeight, 1.60));
+                float innerEdge = smoothstep(
+                    inner - 0.10, inner + 0.42, sampleRadius);
+                float outerEdge = 1.0 - smoothstep(
+                    outer - 1.0, outer + 0.18, sampleRadius);
+                float edgeMask = innerEdge * outerEdge;
+                float samplePhi = atan2(
+                    sampleState.position.components[2],
+                    sampleState.position.components[1]);
+                float charge2 = charge * charge;
+                float orbitalRate = sqrt(max(sampleRadius - charge2, 0.0)) /
+                    max(sampleRadius * sampleRadius, 1.0e-6);
+                float frequencyShift = reissnerNordstromDiskFrequencyShift(
+                    sampleRadius,
+                    charge,
                     cameraRay.angularMomentum,
-                    cameraRay.observerEnergy,
+                    cameraRay.observerEnergy);
+                float materialDensity;
+                float3 emission = diskEmission(
+                    sampleRadius,
+                    samplePhi,
+                    horizon,
+                    orbitalRate,
+                    frequencyShift,
                     edgeMask,
                     materialDensity);
                 float density = verticalDensity * edgeMask * materialDensity;
@@ -474,6 +643,19 @@ struct FragmentInput
 float4 fragmentMain(FragmentInput input) : SV_Target0
 {
     TraceResult trace = traceKerrRay(input.uv);
+    float3 hdr = trace.radiance;
+    if (trace.escaped > 0.5 && trace.transmittance > 0.0)
+        hdr += trace.transmittance * float3(0.00018, 0.00028, 0.00034);
+    float dither = hash12(input.position.xy + 0.01 * pc.time) - 0.5;
+    float3 mapped = filmicLuminance(hdr * max(pc.exposure, 0.01));
+    mapped += dither / 3294.0;
+    return float4(clamp(mapped, 0.0, 1.0), 1.0);
+}
+
+[shader("fragment")]
+float4 reissnerNordstromFragmentMain(FragmentInput input) : SV_Target0
+{
+    TraceResult trace = traceReissnerNordstromRay(input.uv);
     float3 hdr = trace.radiance;
     if (trace.escaped > 0.5 && trace.transmittance > 0.0)
         hdr += trace.transmittance * float3(0.00018, 0.00028, 0.00034);

@@ -34,6 +34,30 @@ slang_spirv(
     ],
 )
 
+slang_spirv(
+    name = "reissner_nordstrom_frag_spv",
+    src = "black_hole.slang",
+    deps = ["//src/physics/slang:core"],
+    entry_point = "reissnerNordstromFragmentMain",
+    import_paths = [
+        "shaders",
+        "src/physics/slang",
+    ],
+    output_name = "reissner_nordstrom.frag.spv",
+    profile = "spirv_1_3",
+    stage = "fragment",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+filegroup(
+    name = "reissner_nordstrom_frag_reflection",
+    srcs = [":reissner_nordstrom_frag_spv"],
+    output_group = "reflection",
+)
+
 filegroup(
     name = "black_hole_frag_reflection",
     srcs = [":black_hole_frag_spv"],

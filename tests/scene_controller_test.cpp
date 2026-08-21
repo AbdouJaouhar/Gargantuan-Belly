@@ -17,6 +17,22 @@ int main() {
     return EXIT_FAILURE;
   }
 
+  scene.setSpacetimeModel(gargantua::scene::SpacetimeModel::ReissnerNordstrom);
+  if (!scene.consumePipelineRebuildRequest() ||
+      scene.scene().spacetime.model !=
+          gargantua::scene::SpacetimeModel::ReissnerNordstrom) {
+    return EXIT_FAILURE;
+  }
+  scene.setSpacetimeModel(gargantua::scene::SpacetimeModel::ReissnerNordstrom);
+  if (scene.consumePipelineRebuildRequest()) {
+    return EXIT_FAILURE;
+  }
+  scene.resetToFigure15a();
+  if (!scene.consumePipelineRebuildRequest() ||
+      scene.scene().spacetime.model != gargantua::scene::SpacetimeModel::Kerr) {
+    return EXIT_FAILURE;
+  }
+
   scene.setPaused(true);
   if (!scene.paused()) {
     return EXIT_FAILURE;

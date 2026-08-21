@@ -42,6 +42,24 @@ private:
   double spin_;
 };
 
+class ReissnerNordstromEngine {
+public:
+  explicit ReissnerNordstromEngine(double mass = 1.0, double charge = 0.0);
+
+  [[nodiscard]] double mass() const noexcept { return mass_; }
+  [[nodiscard]] double charge() const noexcept { return charge_; }
+  [[nodiscard]] MetricSample
+  metric(const std::array<double, 4> &position) const;
+  [[nodiscard]] PhaseSample phase(const PhaseState &state) const;
+  [[nodiscard]] PhaseSample
+  phaseAutomaticReference(const PhaseState &state) const;
+  [[nodiscard]] PhaseState rk4(const PhaseState &state, double stepSize) const;
+
+private:
+  double mass_;
+  double charge_;
+};
+
 class QuarticDispersionEngine {
 public:
   explicit QuarticDispersionEngine(double coupling = 0.0);

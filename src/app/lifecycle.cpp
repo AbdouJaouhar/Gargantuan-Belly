@@ -101,9 +101,12 @@ void Application::resolveRunfiles(const char *argv0) {
 
   vertexShaderPath_ =
       runfiles_->Rlocation("gargantua/shaders/fullscreen.vert.spv");
-  fragmentShaderPath_ =
+  kerrFragmentShaderPath_ =
       runfiles_->Rlocation("gargantua/shaders/black_hole.frag.spv");
-  if (vertexShaderPath_.empty() || fragmentShaderPath_.empty()) {
+  reissnerNordstromFragmentShaderPath_ =
+      runfiles_->Rlocation("gargantua/shaders/reissner_nordstrom.frag.spv");
+  if (vertexShaderPath_.empty() || kerrFragmentShaderPath_.empty() ||
+      reissnerNordstromFragmentShaderPath_.empty()) {
     throw std::runtime_error(
         "Could not resolve the compiled shaders through Bazel runfiles");
   }

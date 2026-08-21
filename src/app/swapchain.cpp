@@ -211,9 +211,13 @@ void Application::createRenderPass() {
 void Application::createPipeline() {
   const gargantua::rendering::RayIntegrationQuality previewQuality =
       qualitySettings(scene_.previewQuality());
+  const std::string &fragmentShaderPath =
+      scene_.scene().spacetime.model == scene::SpacetimeModel::Kerr
+          ? kerrFragmentShaderPath_
+          : reissnerNordstromFragmentShaderPath_;
   pipeline_ = gargantua::rendering::createFullscreenPipeline(
       device_, renderPass_, sizeof(rendering::GpuRenderParameters),
-      vertexShaderPath_, fragmentShaderPath_, previewQuality);
+      vertexShaderPath_, fragmentShaderPath, previewQuality);
 }
 
 void Application::rebuildRayPipelineIfRequested() {

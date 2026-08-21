@@ -127,7 +127,8 @@ private:
   size_t currentFrame_ = 0;
   std::unique_ptr<bazel::tools::cpp::runfiles::Runfiles> runfiles_;
   std::string vertexShaderPath_;
-  std::string fragmentShaderPath_;
+  std::string kerrFragmentShaderPath_;
+  std::string reissnerNordstromFragmentShaderPath_;
   std::string selectedDeviceName_;
   SceneController scene_;
   ui::ParameterMenu menu_;

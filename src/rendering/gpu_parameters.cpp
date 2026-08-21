@@ -13,7 +13,8 @@ GpuRenderParameters packGpuParameters(const scene::Scene &scene,
   parameters.camera.inclinationDegrees = scene.camera.inclinationDegrees;
   parameters.camera.verticalFovDegrees = scene.camera.verticalFovDegrees;
   parameters.camera.horizontalShift = scene.camera.horizontalShift;
-  parameters.blackHole.spin = scene.spacetime.spin;
+  parameters.blackHole.metricParameter =
+      scene::activeMetricParameter(scene.spacetime);
   parameters.blackHole.diskInnerRadius = scene.disk.innerRadius;
   parameters.blackHole.diskOuterRadius = scene.disk.outerRadius;
   parameters.blackHole.diskTemperatureKelvin = scene.disk.temperatureKelvin;

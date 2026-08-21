@@ -139,8 +139,14 @@ cc_library(
 
 cc_library(
     name = "canonical_metric",
-    srcs = ["metrics/canonical_kerr_schild.cpp"],
-    hdrs = ["metrics/canonical_kerr_schild.hpp"],
+    srcs = [
+        "metrics/canonical_kerr_schild.cpp",
+        "metrics/canonical_reissner_nordstrom.cpp",
+    ],
+    hdrs = [
+        "metrics/canonical_kerr_schild.hpp",
+        "metrics/canonical_reissner_nordstrom.hpp",
+    ],
     copts = PHYSICS_COPTS,
     deps = [
         ":canonical_engine",

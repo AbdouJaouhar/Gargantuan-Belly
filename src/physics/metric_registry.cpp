@@ -1,7 +1,8 @@
 #include "src/physics/metric_registry.hpp"
 
-#include "src/physics/metrics/kerr.hpp"
 #include "src/physics/metrics/canonical_kerr_schild.hpp"
+#include "src/physics/metrics/canonical_reissner_nordstrom.hpp"
+#include "src/physics/metrics/kerr.hpp"
 #include "src/physics/metrics/minkowski.hpp"
 #include "src/physics/metrics/schwarzschild.hpp"
 
@@ -30,6 +31,17 @@ void requireKerrParameters(const double mass, const double spin) {
   }
   if (!std::isfinite(spin)) {
     throw std::invalid_argument("Kerr spin must be finite");
+  }
+}
+
+void requireReissnerNordstromParameters(const double mass,
+                                        const double charge) {
+  if (!(mass > 0.0) || !std::isfinite(mass)) {
+    throw std::invalid_argument(
+        "Reissner-Nordstrom mass must be finite and positive");
+  }
+  if (!std::isfinite(charge)) {
+    throw std::invalid_argument("Reissner-Nordstrom charge must be finite");
   }
 }
 
@@ -98,6 +110,12 @@ std::vector<MetricParameterDescriptor> kerrParameters() {
       {"mass", "Mass", 1.0, std::numeric_limits<double>::denorm_min(),
        std::nullopt},
       {"spin", "Specific angular momentum", 0.6, std::nullopt, std::nullopt}};
+}
+
+std::vector<MetricParameterDescriptor> reissnerNordstromParameters() {
+  return {{"mass", "Mass", 1.0, std::numeric_limits<double>::denorm_min(),
+           std::nullopt},
+          {"charge", "Electric charge", 0.8, std::nullopt, std::nullopt}};
 }
 
 } // namespace
@@ -201,6 +219,15 @@ MetricRegistry makeStandardMetricRegistry() {
         requireKerrParameters(mass, spin);
         return std::make_unique<CanonicalKerrSchildMetric>(mass, spin);
       });
+  registry.add({"reissner-nordstrom", "Reissner-Nordstrom",
+                "Cartesian Kerr-Schild", reissnerNordstromParameters()},
+               [](const MetricParameters &parameters) {
+                 const double mass = parameter(parameters, "mass");
+                 const double charge = parameter(parameters, "charge");
+                 requireReissnerNordstromParameters(mass, charge);
+                 return std::make_unique<CanonicalReissnerNordstromMetric>(
+                     mass, charge);
+               });
   return registry;
 }
 

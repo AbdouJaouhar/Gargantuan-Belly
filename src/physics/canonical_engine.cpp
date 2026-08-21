@@ -115,6 +115,86 @@ PhaseState KerrSchildEngine::rk4(const PhaseState &state,
   return result;
 }
 
+ReissnerNordstromEngine::ReissnerNordstromEngine(const double mass,
+                                                 const double charge)
+    : mass_(mass), charge_(charge) {
+  requireFinite(mass, "mass");
+  requireFinite(charge, "charge");
+  if (!(mass > 0.0)) {
+    throw std::invalid_argument("mass must be positive");
+  }
+}
+
+MetricSample
+ReissnerNordstromEngine::metric(const std::array<double, 4> &position) const {
+  HostChargedMetricInput_0 input{};
+  input.mass_3 = mass_;
+  input.charge_0 = charge_;
+  copyToGenerated(position, input.position_4);
+  HostMetricOutput_0 output{};
+  gargantua_reissner_nordstrom_metric(&input, &output);
+
+  MetricSample result;
+  result.defined = output.status_0 == 0;
+  result.covariant = copyFromGenerated<16>(output.covariant_0);
+  result.contravariant = copyFromGenerated<16>(output.contravariant_0);
+  result.derivative = copyFromGenerated<64>(output.derivative_0);
+  result.secondDerivative = copyFromGenerated<256>(output.secondDerivative_0);
+  result.radius = output.radius_0;
+  return result;
+}
+
+PhaseSample ReissnerNordstromEngine::phase(const PhaseState &state) const {
+  HostChargedPhaseInput_0 input{};
+  input.mass_4 = mass_;
+  input.charge_1 = charge_;
+  copyToGenerated(state.position, input.position_5);
+  copyToGenerated(state.momentum, input.momentum_3);
+  HostPhaseOutput_0 output{};
+  gargantua_reissner_nordstrom_phase(&input, &output);
+
+  PhaseSample result;
+  result.hamiltonian = output.hamiltonian_0;
+  result.positionRate = copyFromGenerated<4>(output.positionRate_0);
+  result.momentumRate = copyFromGenerated<4>(output.momentumRate_0);
+  return result;
+}
+
+PhaseSample ReissnerNordstromEngine::phaseAutomaticReference(
+    const PhaseState &state) const {
+  HostChargedPhaseInput_0 input{};
+  input.mass_4 = mass_;
+  input.charge_1 = charge_;
+  copyToGenerated(state.position, input.position_5);
+  copyToGenerated(state.momentum, input.momentum_3);
+  HostPhaseOutput_0 output{};
+  gargantua_reissner_nordstrom_phase_automatic_reference(&input, &output);
+
+  PhaseSample result;
+  result.hamiltonian = output.hamiltonian_0;
+  result.positionRate = copyFromGenerated<4>(output.positionRate_0);
+  result.momentumRate = copyFromGenerated<4>(output.momentumRate_0);
+  return result;
+}
+
+PhaseState ReissnerNordstromEngine::rk4(const PhaseState &state,
+                                        const double stepSize) const {
+  requireFinite(stepSize, "step size");
+  HostChargedStepInput_0 input{};
+  input.mass_5 = mass_;
+  input.charge_2 = charge_;
+  input.stepSize_1 = stepSize;
+  copyToGenerated(state.position, input.position_6);
+  copyToGenerated(state.momentum, input.momentum_4);
+  HostStepOutput_0 output{};
+  gargantua_reissner_nordstrom_rk4(&input, &output);
+
+  PhaseState result;
+  result.position = copyFromGenerated<4>(output.position_3);
+  result.momentum = copyFromGenerated<4>(output.momentum_2);
+  return result;
+}
+
 QuarticDispersionEngine::QuarticDispersionEngine(const double coupling)
     : coupling_(coupling) {
   requireFinite(coupling, "quartic dispersion coupling");
@@ -123,8 +203,8 @@ QuarticDispersionEngine::QuarticDispersionEngine(const double coupling)
 PhaseSample QuarticDispersionEngine::phase(const PhaseState &state) const {
   HostQuarticPhaseInput_0 input{};
   input.coupling_0 = coupling_;
-  copyToGenerated(state.position, input.position_4);
-  copyToGenerated(state.momentum, input.momentum_3);
+  copyToGenerated(state.position, input.position_7);
+  copyToGenerated(state.momentum, input.momentum_5);
   HostPhaseOutput_0 output{};
   gargantua_quartic_dispersion_phase(&input, &output);
 

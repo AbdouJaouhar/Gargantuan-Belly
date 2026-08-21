@@ -4,7 +4,7 @@ Gargantua follows the camera and radiative-transfer notation of James et al.,
 *Gravitational Lensing by Spinning Black Holes in Astrophysics, and in the
 Movie Interstellar*. It is a real-time approximation of DNGR.
 
-The production metric, Hamiltonian, and ray-flow equations are Slang modules in
+The production metrics, Hamiltonians, and ray-flow equations are Slang modules in
 `src/physics/slang/`. Those shared modules compile as double-precision C++ for
 host tests and the physics probe, and as float SPIR-V for the active Vulkan
 fragment. The camera/chart initialization in `KerrCoordinates.slang` is
@@ -17,12 +17,12 @@ registry, and extension process.
 
 For each fragment, `shaders/black_hole.slang` does the following:
 
-1. `makeCameraRay()` converts the pixel to a direction in the stationary-FIDO
-   observer frame. `makeStationaryFidoRay()` constructs a
-   Boyer–Lindquist canonical covector and immediately transforms it to
-   Cartesian Kerr-Schild phase space.
-2. `traceKerrRay()` instantiates `KerrSchildHamiltonianSystem`, which owns the
-   canonical `KerrSchildMetric` specialization.
+1. The selected concrete entry converts the pixel to a direction in a
+   stationary observer frame and constructs a Cartesian Kerr–Schild phase
+   state. Kerr passes through a temporary Boyer–Lindquist covector; RN uses its
+   static spherical tetrad and transforms that covector directly.
+2. The entry instantiates either `KerrSchildHamiltonianSystem` or
+   `ReissnerNordstromHamiltonianSystem`.
 3. Its exact factorized `phaseDerivative()` obtains all eight canonical rates
    while sharing Kerr-Schild geometry work. `integrateCanonicalRk4()` advances
    the ray backward in affine parameter.
@@ -37,21 +37,21 @@ The active vertex and fragment stages are built by the pinned Slang compiler as
 SPIR-V 1.3 and run on the Vulkan 1.1 pipeline. `shaders/black_hole.frag` and
 `shaders/fullscreen.vert` are retained only as legacy visual oracles.
 
-## Units, spin, and horizon policy
+## Units, spin, charge, and horizon policy
 
 The render pipeline uses geometrized units `G = c = M = 1`. Radius and disk
 dimensions are measured in black-hole masses. The interactive scene clamps the
-dimensionless spin to `-0.998 <= a/M <= 0.998`. For that subextremal rendering
-domain, the outer horizon is
+dimensionless spin to `-0.998 <= a/M <= 0.998` and RN charge to
+`0 <= |Q|/M <= 0.998`. Their subextremal outer horizons are
 
 ```text
 r+ = 1 + sqrt(1 - a^2).
+r+ = 1 + sqrt(1 - Q^2).
 ```
 
-The canonical metric itself is parameterized by positive mass and finite spin;
-the host scientific API does not impose `abs(a) < M`. Horizon-dependent scene
-constraints and ray termination are renderer policy and only make the
-subextremal assumption where they use `r+`.
+The canonical metrics accept positive mass and finite spin or charge; the host
+scientific API does not impose extremality bounds. Those bounds belong to the
+renderer’s horizon-dependent scene policy.
 
 ## Camera and chart transformation
 
@@ -113,6 +113,23 @@ Boyer–Lindquist polar-cap switch, embedded Mino-time state, meridian folding,
 or screen-space reconstruction. Those algorithms still exist in legacy GLSL
 files for comparison, but neither Vulkan executable loads them.
 
+## Reissner–Nordström metric
+
+`ReissnerNordstromMetric` uses the same horizon-penetrating Cartesian
+Kerr–Schild chart with spherical `r = sqrt(x^2+y^2+z^2)` and
+
+```text
+g_mu_nu = eta_mu_nu + f l_mu l_nu,
+f = 2M/r - Q^2/r^2,
+l_mu = (1, x/r, y/r, z/r).
+```
+
+The chart is regular at both RN horizons and undefined only at the central
+singularity. Neutral photon paths depend on `Q^2`, so the renderer exposes
+non-negative `|Q|/M`. At `Q = 0` this pipeline is Schwarzschild in Cartesian
+Kerr–Schild coordinates. Circular neutral disk orbits use
+`Omega^2 = M/r^3 - Q^2/r^4`.
+
 ## Hamiltonian flow and integration
 
 For metric light propagation, `MetricHamiltonianSystem<M>` defines
@@ -129,8 +146,8 @@ dp_mu / dlambda = -partial H / partial x^mu.
 ```
 
 `ICanonicalFlowSystem` joins that scalar Hamiltonian to a
-`phaseDerivative()`. For the production metric,
-`KerrSchildHamiltonianSystem` uses the inverse metric's rank-one form
+`phaseDerivative()`. Both production systems use their inverse metric’s
+rank-one form. For Kerr, `KerrSchildHamiltonianSystem` uses
 
 ```text
 g^mu_nu = eta^mu_nu - 2 h l^mu l^nu
@@ -148,14 +165,15 @@ dp_i / dlambda  = (partial_i h) s^2
 dp_0 / dlambda  = 0
 ```
 
-The same `KerrSchildHamiltonianSystem` compiles to double-precision host C++
-and float SPIR-V; neither target maintains a separate Kerr flow.
+`ReissnerNordstromHamiltonianSystem` applies the same factorization with
+`f = 2M/r - Q^2/r^2`. Both systems compile to double-precision host C++ and
+float SPIR-V; neither target maintains a separate production flow.
 
 New theories need only implement `IHamiltonianSystem`. Wrapping one in
 `AutomaticCanonicalFlowSystem` supplies an `ICanonicalFlowSystem` through one
-reverse-mode gradient of the scalar Hamiltonian. The Kerr host API deliberately
-exports that automatic path as a scientific oracle and tests it against the
-factorized production flow.
+reverse-mode gradient of the scalar Hamiltonian. Both production host APIs
+export that automatic path as a scientific oracle and test it against their
+factorized flows.
 
 `integrateCanonicalRk4()` advances all four coordinates and all four covector
 components through whichever `ICanonicalFlowSystem` it receives. The negative
@@ -287,10 +305,10 @@ background, dithering, and tone mapping are appearance choices in
 
 ## Host geometry and derivative accuracy
 
-`HostExports.slang` evaluates the canonical metric and its first derivatives
-in double precision. `CanonicalKerrSchildMetric` adapts those values to the
-C++ Eigen tensor API, whose generic algorithms compute connections and
-curvature.
+`HostExports.slang` evaluates the canonical metrics and their first derivatives
+in double precision. `CanonicalKerrSchildMetric` and
+`CanonicalReissnerNordstromMetric` adapt those values to the C++ Eigen tensor
+API, whose generic algorithms compute connections and curvature.
 
 The current Slang compiler cannot compile the nested automatic differentiation
 needed for second metric derivatives. The host export therefore computes each
@@ -298,14 +316,14 @@ second derivative by a symmetric finite difference of Slang-generated first
 derivatives, with
 `h = 1e-5 * max(abs(coordinate), 1)`. This approximation is used only for
 host curvature. Neither production ray integration nor the automatic
-Hamiltonian oracle uses that finite-difference Hessian. Production Kerr
-propagation uses the exact factorized flow rather than AD; the reverse-mode
-automatic flow is retained as a host validation oracle.
+Hamiltonian oracle uses that finite-difference Hessian. Both production flows
+use exact factorization rather than AD; reverse-mode automatic flows are
+retained as host validation oracles.
 
 The C++ Minkowski, Schwarzschild, Boyer–Lindquist Kerr, and old Kerr-Schild
-models remain scientific and validation oracles. The host registry's
-`kerr-schild` entry is the canonical Slang adapter; the active renderer does
-not select equations from the C++ registry.
+models remain scientific and validation oracles. The host registry’s
+`kerr-schild` and `reissner-nordstrom` entries are canonical Slang adapters;
+the active renderer does not select equations from the C++ registry.
 
 ## Where to make changes
 
@@ -321,14 +339,14 @@ not select equations from the C++ registry.
   provides a small non-metric example, while
   `shaders/quartic_dispersion_probe.slang` proves that theory and its
   reverse-mode `AutomaticCanonicalFlowSystem` compile for SPIR-V.
-- Give each renderable metric or theory a concrete Slang fragment pipeline.
-  The current pipeline statically instantiates
-  `KerrSchildHamiltonianSystem`; adding a host registry entry alone does not
-  make a metric renderable.
+- Give each renderable metric or theory a concrete Slang fragment entry and
+  SPIR-V pipeline. The current entries statically instantiate the Kerr and RN
+  systems; adding a host registry entry alone does not make a metric renderable.
 - Add or update flat host exports in `HostExports.slang`, then keep C++
   adapters thin. Put tensor/curvature analysis in `src/physics/` and
   integration policy in `src/physics/dynamics/`.
-- Change camera/chart transforms in `KerrCoordinates.slang`.
+- Change camera/chart transforms in `KerrCoordinates.slang` or
+  `ReissnerNordstromCoordinates.slang`.
 - Change ray termination, disk transfer, palette, or tone mapping in
   `shaders/black_hole.slang`.
 - Change the paper-inspired shot in `src/scene/presets.cpp`; keep GPU packing

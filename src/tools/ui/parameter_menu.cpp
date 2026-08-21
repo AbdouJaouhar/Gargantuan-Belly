@@ -44,6 +44,16 @@ const char *qualityName(app::PreviewQuality quality) {
   return "Balanced";
 }
 
+const char *spacetimeName(gargantua::scene::SpacetimeModel model) {
+  switch (model) {
+  case gargantua::scene::SpacetimeModel::Kerr:
+    return "Kerr";
+  case gargantua::scene::SpacetimeModel::ReissnerNordstrom:
+    return "Reissner-Nordstrom";
+  }
+  return "Kerr";
+}
+
 } // namespace
 
 ParameterMenu::~ParameterMenu() { shutdown(); }
@@ -170,9 +180,9 @@ void ParameterMenu::drawUtilization(const UtilizationStats &utilization) {
     ImGui::SameLine();
     ImGui::Text("%5.1f%%", utilization.cpuPercent);
     if (utilization.cpuMemoryAvailable) {
-      ImGui::Text("RAM  %6.1f MiB", static_cast<double>(
-                                      utilization.cpuResidentBytes) /
-                                      kBytesPerMebibyte);
+      ImGui::Text("RAM  %6.1f MiB",
+                  static_cast<double>(utilization.cpuResidentBytes) /
+                      kBytesPerMebibyte);
       ImGui::Text("Threads  %u", utilization.cpuThreadCount);
     } else {
       ImGui::TextDisabled("RAM / threads  n/a");
@@ -188,9 +198,9 @@ void ParameterMenu::drawUtilization(const UtilizationStats &utilization) {
       ImGui::TextDisabled("timing n/a");
     }
     if (utilization.gpuMemoryAvailable) {
-      ImGui::Text("Memory %6.1f MiB", static_cast<double>(
-                                       utilization.gpuMemoryBytes) /
-                                       kBytesPerMebibyte);
+      ImGui::Text("Memory %6.1f MiB",
+                  static_cast<double>(utilization.gpuMemoryBytes) /
+                      kBytesPerMebibyte);
     } else {
       ImGui::TextDisabled("Memory  n/a");
     }
@@ -214,8 +224,8 @@ void ParameterMenu::draw(app::SceneController &scene,
     return;
   }
 
-  ImGui::TextColored(ImVec4(0.95f, 0.72f, 0.67f, 1.0f),
-                     "Kerr spacetime  /  Figure 15(a)");
+  ImGui::TextColored(ImVec4(0.95f, 0.72f, 0.67f, 1.0f), "%s spacetime",
+                     spacetimeName(scene.scene().spacetime.model));
   ImGui::TextDisabled("F1 hides this panel");
   ImGui::Separator();
 
@@ -240,10 +250,36 @@ void ParameterMenu::draw(app::SceneController &scene,
   }
 
   if (ImGui::CollapsingHeader("Black hole & disk")) {
-    ImGui::SliderFloat("Dimensionless spin", &model.spacetime.spin,
-                       gargantua::scene::kMinimumKerrSpin,
-                       gargantua::scene::kMaximumKerrSpin, "%.3f");
-    helpMarker("a/M. Positive values rotate with the procedural disk.");
+    gargantua::scene::SpacetimeModel spacetime = model.spacetime.model;
+    if (ImGui::BeginCombo("Spacetime", spacetimeName(spacetime))) {
+      for (const gargantua::scene::SpacetimeModel candidate :
+           {gargantua::scene::SpacetimeModel::Kerr,
+            gargantua::scene::SpacetimeModel::ReissnerNordstrom}) {
+        const bool selected = candidate == spacetime;
+        if (ImGui::Selectable(spacetimeName(candidate), selected)) {
+          scene.setSpacetimeModel(candidate);
+        }
+        if (selected) {
+          ImGui::SetItemDefaultFocus();
+        }
+      }
+      ImGui::EndCombo();
+    }
+    helpMarker("Switches the concrete Vulkan ray pipeline while preserving "
+               "the camera, disk, and appearance settings.");
+    if (model.spacetime.model == gargantua::scene::SpacetimeModel::Kerr) {
+      ImGui::SliderFloat("Dimensionless spin", &model.spacetime.spin,
+                         gargantua::scene::kMinimumKerrSpin,
+                         gargantua::scene::kMaximumKerrSpin, "%.3f");
+      helpMarker("a/M. Positive values rotate with the procedural disk.");
+    } else {
+      ImGui::SliderFloat("Dimensionless charge", &model.spacetime.charge,
+                         gargantua::scene::kMinimumReissnerNordstromCharge,
+                         gargantua::scene::kMaximumReissnerNordstromCharge,
+                         "%.3f");
+      helpMarker("|Q|/M. The sign does not affect neutral photon paths; the "
+                 "range is kept subextremal so an event horizon remains.");
+    }
     gargantua::scene::constrainDiskRadii(model);
     const float minimumInner = gargantua::scene::minimumDiskInnerRadius(model);
     const float maximumInner = gargantua::scene::maximumDiskInnerRadius(model);

@@ -17,6 +17,8 @@ int main() {
       !close(scene.camera.inclinationDegrees, 86.56f) ||
       !close(scene.camera.verticalFovDegrees, 17.2f) ||
       !close(scene.spacetime.spin, 0.6f) ||
+      scene.spacetime.model != gargantua::scene::SpacetimeModel::Kerr ||
+      !close(scene.spacetime.charge, 0.0f) ||
       !close(scene.disk.innerRadius, 6.0f) ||
       !close(scene.disk.outerRadius, 18.7f) ||
       !close(scene.disk.temperatureKelvin, 4500.0f) ||
@@ -36,6 +38,16 @@ int main() {
              gargantua::scene::minimumDiskInnerRadius(constrained)) ||
       !close(constrained.disk.outerRadius,
              gargantua::scene::minimumDiskOuterRadius(constrained))) {
+    return EXIT_FAILURE;
+  }
+  constrained = scene;
+  constrained.spacetime.model =
+      gargantua::scene::SpacetimeModel::ReissnerNordstrom;
+  constrained.spacetime.charge =
+      gargantua::scene::kMaximumReissnerNordstromCharge;
+  if (!close(gargantua::scene::outerHorizonRadius(constrained.spacetime),
+             1.0f + std::sqrt(1.0f - constrained.spacetime.charge *
+                                         constrained.spacetime.charge))) {
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
