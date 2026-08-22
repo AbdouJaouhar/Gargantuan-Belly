@@ -211,6 +211,10 @@ void Application::recordCommandBuffer(VkCommandBuffer commandBuffer,
                        VK_SUBPASS_CONTENTS_INLINE);
   vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipeline_.get());
+  const VkDescriptorSet skyDescriptorSet = skyTexture_.descriptorSet();
+  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          pipeline_.layout(), 0, 1, &skyDescriptorSet, 0,
+                          nullptr);
 
   VkViewport viewport{};
   viewport.width = static_cast<float>(swapchainExtent_.width);

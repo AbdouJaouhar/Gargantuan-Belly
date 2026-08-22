@@ -15,7 +15,7 @@ int main() {
   const gargantua::scene::Scene scene = gargantua::scene::figure15aScene();
   if (!close(scene.camera.radius, 74.1f) ||
       !close(scene.camera.inclinationDegrees, 86.56f) ||
-      !close(scene.camera.verticalFovDegrees, 17.2f) ||
+      !close(scene.camera.verticalFovDegrees, 30.0f) ||
       !close(scene.spacetime.spin, 0.6f) ||
       scene.spacetime.model != gargantua::scene::SpacetimeModel::Kerr ||
       !close(scene.spacetime.charge, 0.0f) ||

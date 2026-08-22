@@ -4,4 +4,5 @@ exports_files([
     "boost.BUILD.bazel",
     "imgui.BUILD.bazel",
     "slang.BUILD.bazel",
+    "tinyexr.BUILD.bazel",
 ])

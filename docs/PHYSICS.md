@@ -28,8 +28,11 @@ For each fragment, `shaders/black_hole.slang` does the following:
    the ray backward in affine parameter.
 4. Each segment near the equatorial disk accumulates emission and optical
    depth through `diskEmission()`.
-5. A ray escaping to the far field receives the near-black paper background; a
-   ray reaching the rendering horizon contributes no background light.
+5. A ray escaping to the far field samples the HDR celestial environment in
+   its asymptotic direction. That incoming radiance is attenuated by any disk
+   material crossed along the ray. If the optional map is absent, the
+   near-black paper background is used; a ray reaching the rendering horizon
+   contributes no background light.
 6. `filmicLuminance()` maps accumulated linear HDR radiance to the Vulkan
    attachment without destroying the calibrated copper/rose hue ratios.
 
@@ -61,6 +64,13 @@ the paper's Boyer–Lindquist 3+1 quantities—lapse, frame dragging, and
 circumferential radius—to create a stationary-FIDO (`beta = 0`) null ray. The
 production DNGR camera could move and therefore also included aberration;
 Gargantua deliberately omits that motion.
+
+The celestial environment is stored in ICRS/J2000 right ascension and
+declination. A fixed orthonormal Hipparcos/Gaia galactic-frame rotation places
+the Galactic Center on the default camera's line through the black hole and
+maps Galactic north to screen-up. The Milky Way plane therefore crosses the
+default shot horizontally and is carried around the shadow by the traced
+geodesics rather than composited in screen space.
 
 The temporary `BoyerLindquistState` contains `r`, `theta`, `phi`,
 `p_r`, `p_theta`, `p_t`, and `p_phi`. The explicit

@@ -216,8 +216,9 @@ void Application::createPipeline() {
           ? kerrFragmentShaderPath_
           : reissnerNordstromFragmentShaderPath_;
   pipeline_ = gargantua::rendering::createFullscreenPipeline(
-      device_, renderPass_, sizeof(rendering::GpuRenderParameters),
-      vertexShaderPath_, fragmentShaderPath, previewQuality);
+      device_, renderPass_, skyTexture_.descriptorSetLayout(),
+      sizeof(rendering::GpuRenderParameters), vertexShaderPath_,
+      fragmentShaderPath, previewQuality);
 }
 
 void Application::rebuildRayPipelineIfRequested() {

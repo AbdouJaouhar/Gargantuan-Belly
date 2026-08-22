@@ -4,6 +4,7 @@
 
 #include "src/app/scene_controller.hpp"
 #include "src/rendering/fullscreen_pipeline.hpp"
+#include "src/rendering/sky_texture.hpp"
 #include "src/rendering/vulkan_instance.hpp"
 #include "src/tools/ui/parameter_menu.hpp"
 #include "tools/cpp/runfiles/runfiles.h"
@@ -129,7 +130,9 @@ private:
   std::string vertexShaderPath_;
   std::string kerrFragmentShaderPath_;
   std::string reissnerNordstromFragmentShaderPath_;
+  std::string skyTexturePath_;
   std::string selectedDeviceName_;
+  rendering::SkyTexture skyTexture_;
   SceneController scene_;
   ui::ParameterMenu menu_;
 };

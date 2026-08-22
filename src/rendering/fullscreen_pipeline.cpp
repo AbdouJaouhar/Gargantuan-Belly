@@ -58,7 +58,8 @@ VkShaderModule createShaderModule(VkDevice device,
 } // namespace
 
 FullscreenPipeline createFullscreenPipeline(
-    VkDevice device, VkRenderPass renderPass, size_t pushConstantBytes,
+    VkDevice device, VkRenderPass renderPass,
+    VkDescriptorSetLayout descriptorSetLayout, size_t pushConstantBytes,
     const std::string &vertexShaderPath, const std::string &fragmentShaderPath,
     std::optional<RayIntegrationQuality> quality) {
   const auto vertexCode = vulkan::readSpirv(vertexShaderPath);
@@ -147,6 +148,8 @@ FullscreenPipeline createFullscreenPipeline(
     pushRange.size = static_cast<uint32_t>(pushConstantBytes);
     VkPipelineLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutInfo.setLayoutCount = 1;
+    layoutInfo.pSetLayouts = &descriptorSetLayout;
     layoutInfo.pushConstantRangeCount = 1;
     layoutInfo.pPushConstantRanges = &pushRange;
     vulkan::checkVk(

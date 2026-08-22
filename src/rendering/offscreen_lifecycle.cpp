@@ -53,6 +53,8 @@ void OffscreenRenderer::renderToImage(const std::string &outputPath) {
   pickPhysicalDevice();
   createLogicalDevice();
   createCommandPool();
+  skyTexture_.initialize(physicalDevice_, device_, graphicsQueue_, commandPool_,
+                         skyTexturePath_);
   createOutputImage();
   createStagingBuffer();
   createRenderPass();
@@ -78,6 +80,8 @@ void OffscreenRenderer::resolveRunfiles(const char *argv0) {
       runfiles_->Rlocation("gargantua/shaders/black_hole.frag.spv");
   reissnerNordstromFragmentShaderPath_ =
       runfiles_->Rlocation("gargantua/shaders/reissner_nordstrom.frag.spv");
+  skyTexturePath_ = runfiles_->Rlocation(
+      "gargantua/assets/sky/starmap_2020_8k.exr");
   if (vertexShaderPath_.empty() || kerrFragmentShaderPath_.empty() ||
       reissnerNordstromFragmentShaderPath_.empty()) {
     throw std::runtime_error(
@@ -109,6 +113,10 @@ void OffscreenRenderer::recordCommands() {
                        VK_SUBPASS_CONTENTS_INLINE);
   vkCmdBindPipeline(commandBuffer_, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipeline_.get());
+  const VkDescriptorSet skyDescriptorSet = skyTexture_.descriptorSet();
+  vkCmdBindDescriptorSets(commandBuffer_, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          pipeline_.layout(), 0, 1, &skyDescriptorSet, 0,
+                          nullptr);
 
   VkViewport viewport{};
   viewport.width = static_cast<float>(width_);
@@ -200,6 +208,7 @@ void OffscreenRenderer::cleanup() noexcept {
       vkDestroyFramebuffer(device_, framebuffer_, nullptr);
     }
     pipeline_.reset();
+    skyTexture_.reset();
     if (renderPass_ != VK_NULL_HANDLE) {
       vkDestroyRenderPass(device_, renderPass_, nullptr);
     }

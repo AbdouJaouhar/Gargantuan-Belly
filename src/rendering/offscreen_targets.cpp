@@ -131,8 +131,8 @@ void OffscreenRenderer::createPipeline() {
           ? kerrFragmentShaderPath_
           : reissnerNordstromFragmentShaderPath_;
   pipeline_ = gargantua::rendering::createFullscreenPipeline(
-      device_, renderPass_, sizeof(GpuRenderParameters), vertexShaderPath_,
-      fragmentShaderPath);
+      device_, renderPass_, skyTexture_.descriptorSetLayout(),
+      sizeof(GpuRenderParameters), vertexShaderPath_, fragmentShaderPath);
 }
 
 void OffscreenRenderer::createFramebuffer() {

@@ -105,6 +105,8 @@ void Application::resolveRunfiles(const char *argv0) {
       runfiles_->Rlocation("gargantua/shaders/black_hole.frag.spv");
   reissnerNordstromFragmentShaderPath_ =
       runfiles_->Rlocation("gargantua/shaders/reissner_nordstrom.frag.spv");
+  skyTexturePath_ = runfiles_->Rlocation(
+      "gargantua/assets/sky/starmap_2020_8k.exr");
   if (vertexShaderPath_.empty() || kerrFragmentShaderPath_.empty() ||
       reissnerNordstromFragmentShaderPath_.empty()) {
     throw std::runtime_error(
@@ -144,6 +146,8 @@ void Application::initVulkan() {
   pickPhysicalDevice();
   createLogicalDevice();
   createCommandPool();
+  skyTexture_.initialize(physicalDevice_, device_, graphicsQueue_, commandPool_,
+                         skyTexturePath_);
   createPerformanceQueries();
   createSwapchainObjects();
   createCommandBuffers();
@@ -160,6 +164,7 @@ void Application::cleanup() noexcept {
     vkDeviceWaitIdle(device_);
     menu_.shutdown();
     cleanupSwapchain();
+    skyTexture_.reset();
     if (timestampQueryPool_ != VK_NULL_HANDLE) {
       vkDestroyQueryPool(device_, timestampQueryPool_, nullptr);
       timestampQueryPool_ = VK_NULL_HANDLE;

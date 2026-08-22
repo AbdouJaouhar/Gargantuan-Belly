@@ -25,7 +25,7 @@ int main() {
       !close(parameters.time, 3.25f) || !close(parameters.exposure, 1.15f) ||
       !close(parameters.camera.radius, 74.1f) ||
       !close(parameters.camera.inclinationDegrees, 86.56f) ||
-      !close(parameters.camera.verticalFovDegrees, 17.2f) ||
+      !close(parameters.camera.verticalFovDegrees, 30.0f) ||
       !close(parameters.camera.horizontalShift, -0.25f) ||
       !close(parameters.blackHole.metricParameter, 0.6f) ||
       !close(parameters.blackHole.diskInnerRadius, 6.0f) ||

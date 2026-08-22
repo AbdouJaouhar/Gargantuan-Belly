@@ -74,8 +74,10 @@ and the metric/theory extension workflow.
   positive, and the `I_nu ∝ nu^3` intensity shift from Liouville's theorem.
   They are off by default because the paper explains that the movie omitted
   them.
-- Luminance-preserving filmic tone mapping and a near-black Figure 15(a)
-  background.
+- Luminance-preserving filmic tone mapping and an optional HDR celestial
+  environment. Escaping geodesics sample the NASA Deep Star Maps OpenEXR, so
+  its radiance is lensed by the black hole and transmitted through the disk;
+  the near-black Figure 15(a) background remains the no-asset fallback.
 
 The renderer intentionally does not integrate DNGR's geodesic-deviation beam
 equations (A.18–A.38), elliptical weighted-average filtering, analytic motion
@@ -94,6 +96,13 @@ disk asset and shifted blackbody-to-RGB conversion are approximations.
 - Vulkan development headers and loader
 - GLFW 3 development files
 - zlib development files (for 16-bit PNG output)
+
+Install the optional 8K HDR sky map before building or running if you want the
+celestial environment instead of the near-black fallback:
+
+```bash
+./scripts/download_sky_map.sh
+```
 
 The build downloads the checksum-pinned official Slang 2026.16 compiler. Slang
 emits both active shader stages as SPIR-V 1.3 and emits portable C++ for host
@@ -255,7 +264,7 @@ quality setting and 4 is intended for final stills.
 The renderer-independent default shot lives in `figure15aScene()` in
 `src/scene/presets.cpp`:
 
-- camera radius `74.1 M`, inclination `86.56°`, vertical FOV `17.2°`;
+- camera radius `74.1 M`, inclination `86.56°`, vertical FOV `30°`;
 - black-hole spin `a/M = 0.6`;
 - procedural emitting disk radii `6 M` to `18.7 M`, temperature `4500 K`;
 - horizontal lens shift `0`, vertical framing shift `0.045`, exposure `1.15`;

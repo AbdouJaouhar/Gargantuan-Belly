@@ -1,0 +1,8 @@
+package(default_visibility = ["//visibility:public"])
+
+# The EXR is intentionally downloaded after checkout and ignored by Git.  An
+# empty filegroup lets the project build with the original fallback background.
+filegroup(
+    name = "nasa_star_map",
+    srcs = glob(["starmap_2020_8k.exr"], allow_empty = True),
+)

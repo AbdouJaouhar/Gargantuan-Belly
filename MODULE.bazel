@@ -42,3 +42,14 @@ http_archive(
     sha256 = "b9c5e195ce9a7124147d47febe78b7f8c59c96829add50b0938bd04b8056fb88",
     urls = ["https://github.com/shader-slang/slang/releases/download/v2026.16/slang-2026.16-linux-x86_64-glibc-2.27.tar.gz"],
 )
+
+# Decode the optional HDR celestial environment directly to half floats before
+# uploading it to Vulkan. TinyEXR uses the system zlib selected by the renderer
+# target rather than its bundled miniz implementation.
+http_archive(
+    name = "tinyexr",
+    build_file = "//third_party:tinyexr.BUILD.bazel",
+    sha256 = "01edf1e18e32e5503fdd2a35d62bb593109daa392324cec0157b150e5fd68077",
+    strip_prefix = "tinyexr-1.0.13",
+    urls = ["https://github.com/syoyo/tinyexr/archive/refs/tags/v1.0.13.tar.gz"],
+)

@@ -44,6 +44,11 @@ struct RenderParameters
 
 [[vk::push_constant]] ConstantBuffer<RenderParameters> pc;
 
+// Set zero is shared by the interactive and offscreen renderers. Keeping the
+// image and sampler separate matches SkyTexture's portable Vulkan layout.
+[[vk::binding(0, 0)]] Texture2D<float4> skyTexture;
+[[vk::binding(1, 0)]] SamplerState skySampler;
+
 [[vk::constant_id(0)]]
 const int kMaxGeodesicSteps = 360;
 [[vk::constant_id(1)]]
@@ -306,6 +311,46 @@ struct TraceResult
     float3 radiance;
     float transmittance;
     float escaped;
+    float3 skyDirection;
+}
+
+float3 sampleSky(float3 direction)
+{
+    // Rotate the fixed world sky so the default camera looks through the
+    // black hole toward the Galactic Center. Galactic north maps to screen-up,
+    // leaving the Milky Way plane horizontal across the default shot. The
+    // ICRS basis is the Hipparcos/Gaia galactic transformation used by NASA's
+    // celestial-coordinate map.
+    const float3 worldCenter = float3(
+        -0.9981981810, 0.0, -0.0600032619);
+    const float3 worldRight = float3(0.0, 1.0, 0.0);
+    const float3 worldUp = float3(
+        0.0600032619, 0.0, -0.9981981810);
+    const float3 galacticCenterIcrs = float3(
+        -0.0548755604, -0.8734370902, -0.4838350155);
+    const float3 galacticRightIcrs = float3(
+        0.4941094279, -0.4448296300, 0.7469822445);
+    const float3 galacticNorthIcrs = float3(
+        -0.8676661490, -0.1980763734, 0.4559837762);
+
+    float3 worldDirection = normalize(direction);
+    float3 celestialDirection =
+        dot(worldDirection, worldCenter) * galacticCenterIcrs +
+        dot(worldDirection, worldRight) * galacticRightIcrs +
+        dot(worldDirection, worldUp) * galacticNorthIcrs;
+    float rightAscension = atan2(
+        celestialDirection.y, celestialDirection.x);
+    float declination = asin(clamp(
+        celestialDirection.z, -1.0, 1.0));
+    float2 uv = float2(
+        0.5 - rightAscension / kTwoPi,
+        0.5 - declination / kPi);
+    float4 sky = skyTexture.SampleLevel(skySampler, uv, 0.0);
+    // The one-pixel fallback has alpha zero so scenes without the optional
+    // asset preserve the original Figure 15(a) appearance.
+    return sky.a > 0.5
+        ? max(sky.rgb, float3(0.0))
+        : float3(0.00018, 0.00028, 0.00034);
 }
 
 KerrCameraRay makeCameraRay(float2 pixel, float spin)
@@ -359,6 +404,7 @@ TraceResult traceKerrRay(float2 pixel)
     result.radiance = float3(0.0);
     result.transmittance = 1.0;
     result.escaped = 0.0;
+    result.skyDirection = float3(1.0, 0.0, 0.0);
 
     for (int stepIndex = 0; stepIndex < kMaxGeodesicSteps; ++stepIndex)
     {
@@ -446,6 +492,10 @@ TraceResult traceKerrRay(float2 pixel)
     float finalRadius = metric.radialCoordinate(state.position);
     if (result.escaped < 0.5 && finalRadius > escapeRadius * 0.92)
         result.escaped = 1.0;
+    result.skyDirection = normalize(float3(
+        state.position.components[1],
+        state.position.components[2],
+        state.position.components[3]));
     return result;
 }
 
@@ -520,6 +570,7 @@ TraceResult traceReissnerNordstromRay(float2 pixel)
     result.radiance = float3(0.0);
     result.transmittance = 1.0;
     result.escaped = 0.0;
+    result.skyDirection = float3(1.0, 0.0, 0.0);
 
     for (int stepIndex = 0; stepIndex < kMaxGeodesicSteps; ++stepIndex)
     {
@@ -609,6 +660,10 @@ TraceResult traceReissnerNordstromRay(float2 pixel)
     float finalRadius = metric.radialCoordinate(state.position);
     if (result.escaped < 0.5 && finalRadius > escapeRadius * 0.92)
         result.escaped = 1.0;
+    result.skyDirection = normalize(float3(
+        state.position.components[1],
+        state.position.components[2],
+        state.position.components[3]));
     return result;
 }
 
@@ -645,7 +700,7 @@ float4 fragmentMain(FragmentInput input) : SV_Target0
     TraceResult trace = traceKerrRay(input.uv);
     float3 hdr = trace.radiance;
     if (trace.escaped > 0.5 && trace.transmittance > 0.0)
-        hdr += trace.transmittance * float3(0.00018, 0.00028, 0.00034);
+        hdr += trace.transmittance * sampleSky(trace.skyDirection);
     float dither = hash12(input.position.xy + 0.01 * pc.time) - 0.5;
     float3 mapped = filmicLuminance(hdr * max(pc.exposure, 0.01));
     mapped += dither / 3294.0;
@@ -658,7 +713,7 @@ float4 reissnerNordstromFragmentMain(FragmentInput input) : SV_Target0
     TraceResult trace = traceReissnerNordstromRay(input.uv);
     float3 hdr = trace.radiance;
     if (trace.escaped > 0.5 && trace.transmittance > 0.0)
-        hdr += trace.transmittance * float3(0.00018, 0.00028, 0.00034);
+        hdr += trace.transmittance * sampleSky(trace.skyDirection);
     float dither = hash12(input.position.xy + 0.01 * pc.time) - 0.5;
     float3 mapped = filmicLuminance(hdr * max(pc.exposure, 0.01));
     mapped += dither / 3294.0;

@@ -51,6 +51,18 @@ cc_library(
 )
 
 cc_library(
+    name = "sky_texture",
+    srcs = ["src/rendering/sky_texture.cpp"],
+    hdrs = ["src/rendering/sky_texture.hpp"],
+    copts = COPTS,
+    linkopts = ["-lz"],
+    deps = [
+        ":vulkan_rendering",
+        "@tinyexr//:tinyexr",
+    ],
+)
+
+cc_library(
     name = "vulkan_device_policy",
     hdrs = ["src/rendering/vulkan_device_policy.hpp"],
     copts = COPTS,
@@ -91,6 +103,7 @@ cc_library(
         "src/app/application.hpp",
     ],
     data = [
+        "//assets/sky:nasa_star_map",
         "//shaders:black_hole_frag_spv",
         "//shaders:reissner_nordstrom_frag_spv",
         "//shaders:fullscreen_vert_spv",
@@ -101,6 +114,7 @@ cc_library(
         ":gpu_parameters",
         ":parameter_menu",
         ":scene_controller",
+        ":sky_texture",
         ":vulkan_device_policy",
         ":vulkan_rendering",
         "@bazel_tools//tools/cpp/runfiles",
@@ -141,6 +155,7 @@ cc_library(
         "src/rendering/offscreen_renderer.hpp",
     ],
     data = [
+        "//assets/sky:nasa_star_map",
         "//shaders:black_hole_frag_spv",
         "//shaders:reissner_nordstrom_frag_spv",
         "//shaders:fullscreen_vert_spv",
@@ -151,6 +166,7 @@ cc_library(
         ":high_precision_image_writer",
         ":scene_model",
         ":scene_presets",
+        ":sky_texture",
         ":vulkan_device_policy",
         ":vulkan_rendering",
         "@bazel_tools//tools/cpp/runfiles",

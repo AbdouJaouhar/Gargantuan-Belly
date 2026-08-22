@@ -135,9 +135,14 @@ int main(int argc, char **argv) {
     }
   }
 
-  const std::array<std::string_view, 15> reflectedLayout{
+  const std::array<std::string_view, 20> reflectedLayout{
       R"("name":"pc")",
       R"("kind":"pushConstantBuffer","index":0)",
+      R"("name":"skyTexture")",
+      R"("kind":"descriptorTableSlot","index":0)",
+      R"("baseShape":"texture2D")",
+      R"("name":"skySampler")",
+      R"("kind":"descriptorTableSlot","index":1)",
       R"("name":"RenderParameters")",
       R"("name":"CameraParameters")",
       R"("name":"BlackHoleParameters")",

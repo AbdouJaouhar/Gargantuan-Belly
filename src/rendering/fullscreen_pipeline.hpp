@@ -29,8 +29,8 @@ public:
 
 private:
   friend FullscreenPipeline
-  createFullscreenPipeline(VkDevice, VkRenderPass, size_t, const std::string &,
-                           const std::string &,
+  createFullscreenPipeline(VkDevice, VkRenderPass, VkDescriptorSetLayout,
+                           size_t, const std::string &, const std::string &,
                            std::optional<RayIntegrationQuality>);
 
   VkDevice device_ = VK_NULL_HANDLE;
@@ -39,7 +39,8 @@ private:
 };
 
 FullscreenPipeline createFullscreenPipeline(
-    VkDevice device, VkRenderPass renderPass, size_t pushConstantBytes,
+    VkDevice device, VkRenderPass renderPass,
+    VkDescriptorSetLayout descriptorSetLayout, size_t pushConstantBytes,
     const std::string &vertexShaderPath, const std::string &fragmentShaderPath,
     std::optional<RayIntegrationQuality> quality = std::nullopt);
 

@@ -7,7 +7,7 @@ Scene figure15aScene() {
   scene.appearance.exposure = 1.15f;
   scene.camera.radius = 74.1f;
   scene.camera.inclinationDegrees = 86.56f;
-  scene.camera.verticalFovDegrees = 17.2f;
+  scene.camera.verticalFovDegrees = 30.0f;
   scene.camera.verticalShift = 0.045f;
   scene.spacetime.spin = 0.6f;
   scene.disk.innerRadius = 6.0f;

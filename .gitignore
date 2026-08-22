@@ -7,3 +7,6 @@
 /*.ppm
 /gargantua*.png
 /*.trace
+
+# Downloaded separately because the NASA 8K OpenEXR is about 125 MB.
+/assets/sky/*.exr

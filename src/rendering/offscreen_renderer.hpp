@@ -2,6 +2,7 @@
 
 #include "src/rendering/fullscreen_pipeline.hpp"
 #include "src/rendering/gpu_parameters.hpp"
+#include "src/rendering/sky_texture.hpp"
 #include "src/rendering/vulkan_instance.hpp"
 #include "src/scene/scene.hpp"
 #include "tools/cpp/runfiles/runfiles.h"
@@ -62,12 +63,14 @@ private:
   std::string vertexShaderPath_;
   std::string kerrFragmentShaderPath_;
   std::string reissnerNordstromFragmentShaderPath_;
+  std::string skyTexturePath_;
   scene::Scene scene_{};
   VulkanInstance instance_;
   VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
   uint32_t graphicsFamily_ = 0;
   VkDevice device_ = VK_NULL_HANDLE;
   VkQueue graphicsQueue_ = VK_NULL_HANDLE;
+  SkyTexture skyTexture_;
   VkImage outputImage_ = VK_NULL_HANDLE;
   VkDeviceMemory outputMemory_ = VK_NULL_HANDLE;
   VkImageView outputView_ = VK_NULL_HANDLE;
