@@ -204,11 +204,13 @@ factorized flows.
 `integrateCanonicalRk4()` advances all four coordinates and all four covector
 components through whichever `ICanonicalFlowSystem` it receives. The negative
 affine step traces from camera toward emitter. The fragment's rendering policy
-grows the step with radius and shrinks it near the outer horizon. Full-quality
-headless rendering permits 360 steps; interactive specialization uses 140,
-220, or 300 steps with larger or smaller scale factors for the three quality
-presets. This remains a real-time heuristic, not DNGR's adaptive
-Runge–Kutta–Fehlberg method.
+grows the step with radius and shrinks it near the outer horizon. It retains
+the radius-relative far-field step instead of applying a fixed ceiling; this
+prevents distant camera rays from exhausting the budget in weakly curved space
+and being mistaken for a large circular shadow. Full-quality headless rendering
+permits 360 steps; interactive specialization uses 140, 220, or 300 steps with
+larger or smaller scale factors for the three quality presets. This remains a
+real-time heuristic, not DNGR's adaptive Runge–Kutta–Fehlberg method.
 
 Host experiments can call the same double-precision Slang RK4 export. They can
 also wrap the same factorized derivative in `CanonicalKerrSchildSystem` and let
@@ -220,17 +222,24 @@ and accepts steps; it does not supply a different Kerr equation.
 The disk is a thin procedural volume around the Kerr-Schild equatorial plane
 `z = 0`. For a candidate ray segment, the fragment estimates its closest
 equatorial sample, evaluates vertical density and radial edge masks, and
-applies the emission/absorption recurrence
+applies separate emission and extinction optical depths
 
 ```text
-opacity = 1 - exp(-density * path_length)
-radiance += transmittance * opacity * emission
-transmittance *= 1 - opacity.
+tau = density * path_length
+emission_opacity = 1 - exp(-tau)
+extinction_opacity = 1 - exp(-0.12 tau)
+radiance += transmittance * emission_opacity * emission
+transmittance *= 1 - extinction_opacity.
 ```
 
 The material uses the canonical metric's radial coordinate and converts the
 sample's Cartesian azimuth back to Boyer–Lindquist azimuth for the advected
-filament pattern. This conversion affects texture coordinates, not ray
+filament pattern. Its extinction follows the luminous radial envelope instead
+of retaining a density floor at the outer edge, and the movie-style appearance
+uses only 12% of the emission optical depth for background extinction. The
+bright inner disk therefore retains its luminous body, while the faint
+outskirts transmit the lensed celestial environment rather than forming a dark
+silhouette. The azimuth conversion affects texture coordinates, not ray
 propagation.
 
 ### Disk animation and long-run stability

@@ -70,6 +70,10 @@ static const float kTwoPi = 6.28318530717958647692;
 // unresolved, then blend to the next deterministic material without a jump.
 static const float kDiskMaterialLifetime = 8.0;
 static const float kDiskMaterialFadeStart = 0.75;
+// The artist-authored movie disk should read as luminous material suspended
+// over the lensed sky, not as a dark opaque plate. Emission retains the full
+// optical depth while extinction uses only this fraction of it.
+static const float kDiskExtinctionFraction = 0.12;
 
 float saturateValue(float value)
 {
@@ -386,8 +390,13 @@ float3 diskEmission(
     float radialEnvelope = pow(saturateValue(1.0 - radialCoordinate), 0.58);
     float emissionLevel = smoothstep(
         0.02, 0.98, radialEnvelope * (0.34 + 1.35 * texture));
+    // Fade extinction with the luminous radial envelope. Keeping a non-zero
+    // density floor here made the cool outer disk absorb the HDR sky after
+    // its own emission had faded, producing an opaque black wedge beside the
+    // bright disk. The visible disk remains marginally optically thick near
+    // its bright inner radii while its outskirts now reveal the lensed sky.
     materialDensity = (0.14 + 1.20 * pow(texture, 1.10)) *
-        lerp(0.40, 1.0, radialEnvelope);
+        pow(radialEnvelope, 1.35);
 
     float shift = 1.0;
     float intensityShift = 1.0;
@@ -539,10 +548,13 @@ TraceResult traceKerrRay(float2 pixel)
         }
 
         float distanceToHorizon = radius - horizon;
-        float stepMagnitude = clamp(
+        // A relative far-field step keeps the work nearly independent of the
+        // observer radius. The former 0.78 M ceiling made distant rays spend
+        // the entire fixed budget crossing weakly curved space, leaving a
+        // circular band incorrectly classified as captured by the hole.
+        float stepMagnitude = max(
             0.038 * kGeodesicStepScale * radius,
-            0.018 * kGeodesicStepScale,
-            0.78 * kGeodesicStepScale);
+            0.018 * kGeodesicStepScale);
         stepMagnitude = min(
             stepMagnitude, max(0.004, distanceToHorizon * 0.20));
         float affineStep = -stepMagnitude;
@@ -598,9 +610,13 @@ TraceResult traceKerrRay(float2 pixel)
                     edgeMask,
                     materialDensity);
                 float density = verticalDensity * edgeMask * materialDensity;
-                float opacity = 1.0 - exp(-density * abs(affineStep) * 9.0);
-                result.radiance += result.transmittance * opacity * emission;
-                result.transmittance *= 1.0 - opacity;
+                float opticalDepth = density * abs(affineStep) * 9.0;
+                float emissionOpacity = 1.0 - exp(-opticalDepth);
+                float extinctionOpacity = 1.0 - exp(
+                    -opticalDepth * kDiskExtinctionFraction);
+                result.radiance +=
+                    result.transmittance * emissionOpacity * emission;
+                result.transmittance *= 1.0 - extinctionOpacity;
                 if (result.transmittance < 0.008)
                     break;
             }
@@ -707,10 +723,11 @@ TraceResult traceReissnerNordstromRay(float2 pixel)
         }
 
         float distanceToHorizon = radius - horizon;
-        float stepMagnitude = clamp(
+        // Keep the same radius-relative far-field policy as the Kerr trace so
+        // the fixed step budget does not become a camera-distance cutoff.
+        float stepMagnitude = max(
             0.038 * kGeodesicStepScale * radius,
-            0.018 * kGeodesicStepScale,
-            0.78 * kGeodesicStepScale);
+            0.018 * kGeodesicStepScale);
         stepMagnitude = min(
             stepMagnitude, max(0.004, distanceToHorizon * 0.20));
         float affineStep = -stepMagnitude;
@@ -768,9 +785,13 @@ TraceResult traceReissnerNordstromRay(float2 pixel)
                     edgeMask,
                     materialDensity);
                 float density = verticalDensity * edgeMask * materialDensity;
-                float opacity = 1.0 - exp(-density * abs(affineStep) * 9.0);
-                result.radiance += result.transmittance * opacity * emission;
-                result.transmittance *= 1.0 - opacity;
+                float opticalDepth = density * abs(affineStep) * 9.0;
+                float emissionOpacity = 1.0 - exp(-opticalDepth);
+                float extinctionOpacity = 1.0 - exp(
+                    -opticalDepth * kDiskExtinctionFraction);
+                result.radiance +=
+                    result.transmittance * emissionOpacity * emission;
+                result.transmittance *= 1.0 - extinctionOpacity;
                 if (result.transmittance < 0.008)
                     break;
             }
