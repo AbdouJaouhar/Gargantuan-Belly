@@ -147,6 +147,45 @@ void ParameterMenu::applyStyle(GLFWwindow *window) {
   colors[ImGuiCol_ButtonActive] = ImVec4(0.78f, 0.43f, 0.38f, 1.0f);
 }
 
+void ParameterMenu::beginLoadingFrame(const std::string &gpuName) {
+  ImGui_ImplVulkan_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+
+  const ImGuiViewport *viewport = ImGui::GetMainViewport();
+  ImGui::SetNextWindowPos(
+      ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
+             viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
+      ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+  ImGui::SetNextWindowSize(ImVec2(500.0f, 210.0f), ImGuiCond_Always);
+  const ImGuiWindowFlags flags =
+      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav |
+      ImGuiWindowFlags_NoInputs;
+  if (ImGui::Begin("##gargantua_loading", nullptr, flags)) {
+    ImGui::Dummy(ImVec2(0.0f, 22.0f));
+    const char *title = "G A R G A N T U A";
+    const float titleWidth = ImGui::CalcTextSize(title).x;
+    ImGui::SetCursorPosX((ImGui::GetWindowWidth() - titleWidth) * 0.5f);
+    ImGui::TextColored(ImVec4(0.98f, 0.72f, 0.66f, 1.0f), "%s", title);
+
+    ImGui::Dummy(ImVec2(0.0f, 22.0f));
+    const char *status = "Preparing the relativistic renderer...";
+    const float statusWidth = ImGui::CalcTextSize(status).x;
+    ImGui::SetCursorPosX((ImGui::GetWindowWidth() - statusWidth) * 0.5f);
+    ImGui::TextUnformatted(status);
+
+    ImGui::Dummy(ImVec2(0.0f, 18.0f));
+    const std::string device = "GPU: " + gpuName;
+    const float deviceWidth = ImGui::CalcTextSize(device.c_str()).x;
+    ImGui::SetCursorPosX(
+        std::max(14.0f, (ImGui::GetWindowWidth() - deviceWidth) * 0.5f));
+    ImGui::TextDisabled("%s", device.c_str());
+  }
+  ImGui::End();
+  ImGui::Render();
+}
+
 void ParameterMenu::beginFrame(app::SceneController &scene,
                                const std::string &gpuName,
                                const UtilizationStats &utilization) {

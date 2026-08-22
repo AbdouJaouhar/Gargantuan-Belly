@@ -81,13 +81,14 @@ private:
   void createCommandBuffers();
   void createSyncObjects();
   void createPerformanceQueries();
-  void createSwapchainObjects();
+  void createSwapchainObjects(bool createRayPipeline = true);
   void rebuildRayPipelineIfRequested();
-  void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-  void drawFrame();
+  void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,
+                           bool renderScene);
+  void drawFrame(bool renderScene = true);
   void sampleCpuUtilization();
   void collectGpuUtilization(size_t frameIndex);
-  void recreateSwapchain();
+  void recreateSwapchain(bool createRayPipeline = true);
   void cleanupSwapchain() noexcept;
   void cleanup() noexcept;
 

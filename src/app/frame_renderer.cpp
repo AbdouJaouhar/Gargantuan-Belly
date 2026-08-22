@@ -182,7 +182,8 @@ void Application::collectGpuUtilization(size_t frameIndex) {
 }
 
 void Application::recordCommandBuffer(VkCommandBuffer commandBuffer,
-                                      uint32_t imageIndex) {
+                                      uint32_t imageIndex,
+                                      bool renderScene) {
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -197,7 +198,8 @@ void Application::recordCommandBuffer(VkCommandBuffer commandBuffer,
   }
 
   VkClearValue clear{};
-  clear.color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+  clear.color = renderScene ? VkClearColorValue{{0.0f, 0.0f, 0.0f, 1.0f}}
+                            : VkClearColorValue{{0.012f, 0.016f, 0.024f, 1.0f}};
   VkRenderPassBeginInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   renderPassInfo.renderPass = renderPass_;
@@ -209,31 +211,33 @@ void Application::recordCommandBuffer(VkCommandBuffer commandBuffer,
 
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
-  vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline_.get());
-  const VkDescriptorSet skyDescriptorSet = skyTexture_.descriptorSet();
-  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          pipeline_.layout(), 0, 1, &skyDescriptorSet, 0,
-                          nullptr);
+  if (renderScene) {
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      pipeline_.get());
+    const VkDescriptorSet skyDescriptorSet = skyTexture_.descriptorSet();
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            pipeline_.layout(), 0, 1, &skyDescriptorSet, 0,
+                            nullptr);
 
-  VkViewport viewport{};
-  viewport.width = static_cast<float>(swapchainExtent_.width);
-  viewport.height = static_cast<float>(swapchainExtent_.height);
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-  VkRect2D scissor{{0, 0}, swapchainExtent_};
-  vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+    VkViewport viewport{};
+    viewport.width = static_cast<float>(swapchainExtent_.width);
+    viewport.height = static_cast<float>(swapchainExtent_.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+    VkRect2D scissor{{0, 0}, swapchainExtent_};
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-  const rendering::GpuRenderParameters parameters =
-      rendering::packGpuParameters(scene_.scene(),
-                                   {static_cast<float>(swapchainExtent_.width),
-                                    static_cast<float>(swapchainExtent_.height),
-                                    scene_.animationTime()});
-  vkCmdPushConstants(commandBuffer, pipeline_.layout(),
-                     VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(parameters),
-                     &parameters);
-  vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    const rendering::GpuRenderParameters parameters =
+        rendering::packGpuParameters(
+            scene_.scene(), {static_cast<float>(swapchainExtent_.width),
+                             static_cast<float>(swapchainExtent_.height),
+                             scene_.animationTime()});
+    vkCmdPushConstants(commandBuffer, pipeline_.layout(),
+                       VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(parameters),
+                       &parameters);
+    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+  }
   menu_.record(commandBuffer);
   vkCmdEndRenderPass(commandBuffer);
   if (timestampQueryPool_ != VK_NULL_HANDLE) {
@@ -244,7 +248,7 @@ void Application::recordCommandBuffer(VkCommandBuffer commandBuffer,
   checkVk(vkEndCommandBuffer(commandBuffer), "vkEndCommandBuffer");
 }
 
-void Application::drawFrame() {
+void Application::drawFrame(bool renderScene) {
   checkVk(vkWaitForFences(device_, 1, &inFlight_[currentFrame_], VK_TRUE,
                           std::numeric_limits<uint64_t>::max()),
           "vkWaitForFences");
@@ -255,7 +259,7 @@ void Application::drawFrame() {
       device_, swapchain_, std::numeric_limits<uint64_t>::max(),
       imageAvailable_[currentFrame_], VK_NULL_HANDLE, &imageIndex);
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    recreateSwapchain();
+    recreateSwapchain(renderScene);
     return;
   }
   const bool acquireSuboptimal = result == VK_SUBOPTIMAL_KHR;
@@ -274,7 +278,8 @@ void Application::drawFrame() {
           "vkResetFences");
   checkVk(vkResetCommandBuffer(commandBuffers_[currentFrame_], 0),
           "vkResetCommandBuffer");
-  recordCommandBuffer(commandBuffers_[currentFrame_], imageIndex);
+  recordCommandBuffer(commandBuffers_[currentFrame_], imageIndex,
+                      renderScene);
 
   const VkPipelineStageFlags waitStage =
       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -314,7 +319,7 @@ void Application::drawFrame() {
                                acquireSuboptimal || framebufferResized_;
   if (needsRecreation) {
     framebufferResized_ = false;
-    recreateSwapchain();
+    recreateSwapchain(renderScene);
   } else if (result != VK_SUCCESS) {
     throwVk("vkQueuePresentKHR", result);
   }

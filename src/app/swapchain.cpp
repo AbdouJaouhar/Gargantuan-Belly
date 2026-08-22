@@ -248,16 +248,18 @@ void Application::createFramebuffers() {
   }
 }
 
-void Application::createSwapchainObjects() {
+void Application::createSwapchainObjects(bool createRayPipeline) {
   createSwapchain();
   createImageViews();
   createRenderPass();
-  createPipeline();
+  if (createRayPipeline) {
+    createPipeline();
+  }
   createFramebuffers();
   imagesInFlight_.assign(swapchainImages_.size(), VK_NULL_HANDLE);
 }
 
-void Application::recreateSwapchain() {
+void Application::recreateSwapchain(bool createRayPipeline) {
   int width = 0;
   int height = 0;
   glfwGetFramebufferSize(window_, &width, &height);
@@ -272,7 +274,7 @@ void Application::recreateSwapchain() {
   checkVk(vkDeviceWaitIdle(device_), "vkDeviceWaitIdle");
   menu_.shutdownVulkan();
   cleanupSwapchain();
-  createSwapchainObjects();
+  createSwapchainObjects(createRayPipeline);
   const QueueFamilies families = findQueueFamilies(physicalDevice_);
   menu_.initializeVulkan(instance_, physicalDevice_, device_,
                          *families.graphics, graphicsQueue_, renderPass_,

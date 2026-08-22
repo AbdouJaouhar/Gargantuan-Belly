@@ -40,6 +40,7 @@ public:
                         VkDevice device, uint32_t queueFamily, VkQueue queue,
                         VkRenderPass renderPass, uint32_t minImageCount,
                         uint32_t imageCount);
+  void beginLoadingFrame(const std::string &gpuName);
   void beginFrame(app::SceneController &scene, const std::string &gpuName,
                   const UtilizationStats &utilization);
   void record(VkCommandBuffer commandBuffer) const;

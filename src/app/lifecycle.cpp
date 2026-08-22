@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <exception>
 #include <iostream>
 #include <limits>
 #include <set>
@@ -31,6 +32,52 @@ Application::~Application() { cleanup(); }
 void Application::run() {
   initWindow();
   initVulkan();
+
+  glfwSetWindowTitle(window_, "Gargantua - Loading...");
+  glfwShowWindow(window_);
+  glfwPollEvents();
+  menu_.beginLoadingFrame(selectedDeviceName_);
+  drawFrame(false);
+  // Showing a window can change its framebuffer extent on some compositors.
+  // Render again after drawFrame has handled any resulting swapchain rebuild.
+  menu_.beginLoadingFrame(selectedDeviceName_);
+  drawFrame(false);
+  checkVk(vkDeviceWaitIdle(device_), "vkDeviceWaitIdle(splash screen)");
+
+  // HDR decoding/upload and ray-pipeline compilation are the expensive parts
+  // of startup.  Vulkan permits this resource work off the UI thread; keeping
+  // GLFW event processing here prevents the desktop from treating the splash
+  // screen as an unresponsive application.
+  std::atomic<bool> rendererReady{false};
+  std::exception_ptr rendererError;
+  std::thread rendererInitialization([this, &rendererReady, &rendererError] {
+    try {
+      skyTexture_.initialize(physicalDevice_, device_, graphicsQueue_,
+                             commandPool_, skyTexturePath_);
+      createPipeline();
+    } catch (...) {
+      rendererError = std::current_exception();
+    }
+    rendererReady.store(true, std::memory_order_release);
+    glfwPostEmptyEvent();
+  });
+
+  bool splashHidden = false;
+  while (!rendererReady.load(std::memory_order_acquire)) {
+    glfwWaitEventsTimeout(0.1);
+    if (!splashHidden && glfwWindowShouldClose(window_)) {
+      glfwHideWindow(window_);
+      splashHidden = true;
+    }
+  }
+  rendererInitialization.join();
+  if (rendererError != nullptr) {
+    std::rethrow_exception(rendererError);
+  }
+  if (glfwWindowShouldClose(window_)) {
+    return;
+  }
+
   gargantua::app::SceneController::printHelp();
   scene_.updateWindowTitle(window_);
 
@@ -127,6 +174,7 @@ void Application::initWindow() {
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+  glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
   window_ = glfwCreateWindow(static_cast<int>(kInitialWidth),
                              static_cast<int>(kInitialHeight), "Gargantua",
                              nullptr, nullptr);
@@ -146,10 +194,8 @@ void Application::initVulkan() {
   pickPhysicalDevice();
   createLogicalDevice();
   createCommandPool();
-  skyTexture_.initialize(physicalDevice_, device_, graphicsQueue_, commandPool_,
-                         skyTexturePath_);
   createPerformanceQueries();
-  createSwapchainObjects();
+  createSwapchainObjects(false);
   createCommandBuffers();
   createSyncObjects();
   const QueueFamilies families = findQueueFamilies(physicalDevice_);
