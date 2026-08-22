@@ -81,11 +81,16 @@ void Application::run() {
   gargantua::app::SceneController::printHelp();
   scene_.updateWindowTitle(window_);
 
+  auto previousFrameStart = std::chrono::steady_clock::now();
   while (!glfwWindowShouldClose(window_)) {
     const auto frameStart = std::chrono::steady_clock::now();
+    const float navigationDelta =
+        std::chrono::duration<float>(frameStart - previousFrameStart).count();
+    previousFrameStart = frameStart;
     glfwPollEvents();
     sampleCpuUtilization();
     menu_.beginFrame(scene_, selectedDeviceName_, utilization_);
+    scene_.updateNavigation(window_, navigationDelta, !menu_.wantsKeyboard());
     scene_.updateWindowTitle(window_);
     rebuildRayPipelineIfRequested();
     drawFrame();
@@ -152,8 +157,8 @@ void Application::resolveRunfiles(const char *argv0) {
       runfiles_->Rlocation("gargantua/shaders/black_hole.frag.spv");
   reissnerNordstromFragmentShaderPath_ =
       runfiles_->Rlocation("gargantua/shaders/reissner_nordstrom.frag.spv");
-  skyTexturePath_ = runfiles_->Rlocation(
-      "gargantua/assets/sky/starmap_2020_8k.exr");
+  skyTexturePath_ =
+      runfiles_->Rlocation("gargantua/assets/sky/starmap_2020_8k.exr");
   if (vertexShaderPath_.empty() || kerrFragmentShaderPath_.empty() ||
       reissnerNordstromFragmentShaderPath_.empty()) {
     throw std::runtime_error(

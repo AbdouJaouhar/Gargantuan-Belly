@@ -51,13 +51,21 @@ int main(int argc, char **argv) {
       "gargantua/shaders/black_hole.frag.spv.reflection.json"));
   const std::string chargedReflection = readFile(runfiles->Rlocation(
       "gargantua/shaders/reissner_nordstrom.frag.spv.reflection.json"));
-  const std::array<std::string_view, 4> cppBlocks{
+  const std::array<std::string_view, 5> cppBlocks{
       R"(
         struct GpuCameraParameters {
           float radius = 0.0f;
           float inclinationDegrees = 0.0f;
           float verticalFovDegrees = 0.0f;
           float horizontalShift = 0.0f;
+        };
+      )",
+      R"(
+        struct GpuObserverMotion {
+          float azimuthDegrees = 0.0f;
+          float velocityRadial = 0.0f;
+          float velocityPolar = 0.0f;
+          float velocityAzimuthal = 0.0f;
         };
       )",
       R"(
@@ -82,6 +90,7 @@ int main(int argc, char **argv) {
           float time = 0.0f;
           float exposure = 1.0f;
           GpuCameraParameters camera{};
+          GpuObserverMotion observer{};
           GpuBlackHoleParameters blackHole{};
           GpuRenderOptions options{};
         };
@@ -93,13 +102,21 @@ int main(int argc, char **argv) {
     }
   }
 
-  const std::array<std::string_view, 4> slangBlocks{
+  const std::array<std::string_view, 5> slangBlocks{
       R"(
         struct CameraParameters {
           float radius;
           float inclinationDegrees;
           float verticalFovDegrees;
           float horizontalShift;
+        }
+      )",
+      R"(
+        struct ObserverMotion {
+          float azimuthDegrees;
+          float velocityRadial;
+          float velocityPolar;
+          float velocityAzimuthal;
         }
       )",
       R"(
@@ -124,6 +141,7 @@ int main(int argc, char **argv) {
           float time;
           float exposure;
           CameraParameters camera;
+          ObserverMotion observer;
           BlackHoleParameters blackHole;
           RenderOptions options;
         }
@@ -135,7 +153,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  const std::array<std::string_view, 20> reflectedLayout{
+  const std::array<std::string_view, 22> reflectedLayout{
       R"("name":"pc")",
       R"("kind":"pushConstantBuffer","index":0)",
       R"("name":"skyTexture")",
@@ -145,6 +163,7 @@ int main(int argc, char **argv) {
       R"("kind":"descriptorTableSlot","index":1)",
       R"("name":"RenderParameters")",
       R"("name":"CameraParameters")",
+      R"("name":"ObserverMotion")",
       R"("name":"BlackHoleParameters")",
       R"("name":"RenderOptions")",
       R"("offset":0,"size":8)",
@@ -153,7 +172,8 @@ int main(int argc, char **argv) {
       R"("offset":16,"size":16)",
       R"("offset":32,"size":16)",
       R"("offset":48,"size":16)",
-      R"("kind":"uniform","value":64,"alignment":8)",
+      R"("offset":64,"size":16)",
+      R"("kind":"uniform","value":80,"alignment":8)",
       R"("name":"kMaxGeodesicSteps","binding":{"kind":"specializationConstant","index":0)",
       R"("name":"kGeodesicStepScale","binding":{"kind":"specializationConstant","index":1)",
   };
@@ -175,7 +195,7 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  if (cpp.find("static_assert(sizeof(GpuRenderParameters) == 64)") ==
+  if (cpp.find("static_assert(sizeof(GpuRenderParameters) == 80)") ==
       std::string::npos) {
     return EXIT_FAILURE;
   }

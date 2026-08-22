@@ -27,6 +27,10 @@ public:
   float animationTime() const;
 
   void handleKey(GLFWwindow *window, int key, int action);
+  void updateNavigation(GLFWwindow *window, float deltaSeconds,
+                        bool inputEnabled = true);
+  void navigate(float radialInput, float polarInput, float azimuthalInput,
+                float deltaSeconds, float speedMultiplier = 1.0f);
   void updateWindowTitle(GLFWwindow *window) const;
   void resetToFigure15a();
   void setPaused(bool paused);
@@ -39,6 +43,7 @@ public:
 
 private:
   void togglePaused();
+  void stopNavigation();
 
   ::gargantua::scene::Scene scene_{};
   bool paused_ = false;

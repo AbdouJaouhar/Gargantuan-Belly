@@ -14,6 +14,13 @@ struct GpuCameraParameters {
   float horizontalShift = 0.0f;
 };
 
+struct GpuObserverMotion {
+  float azimuthDegrees = 0.0f;
+  float velocityRadial = 0.0f;
+  float velocityPolar = 0.0f;
+  float velocityAzimuthal = 0.0f;
+};
+
 struct GpuBlackHoleParameters {
   float metricParameter = 0.0f;
   float diskInnerRadius = 0.0f;
@@ -35,6 +42,7 @@ struct alignas(16) GpuRenderParameters {
   float time = 0.0f;
   float exposure = 1.0f;
   GpuCameraParameters camera{};
+  GpuObserverMotion observer{};
   GpuBlackHoleParameters blackHole{};
   GpuRenderOptions options{};
 };
@@ -46,9 +54,10 @@ struct FrameInputs {
 };
 
 static_assert(sizeof(GpuCameraParameters) == 16);
+static_assert(sizeof(GpuObserverMotion) == 16);
 static_assert(sizeof(GpuBlackHoleParameters) == 16);
 static_assert(sizeof(GpuRenderOptions) == 16);
-static_assert(sizeof(GpuRenderParameters) == 64);
+static_assert(sizeof(GpuRenderParameters) == 80);
 static_assert(alignof(GpuRenderParameters) == 16);
 static_assert(std::is_standard_layout_v<GpuRenderParameters>);
 static_assert(std::is_trivially_copyable_v<GpuRenderParameters>);
@@ -56,8 +65,9 @@ static_assert(offsetof(GpuRenderParameters, resolution) == 0);
 static_assert(offsetof(GpuRenderParameters, time) == 8);
 static_assert(offsetof(GpuRenderParameters, exposure) == 12);
 static_assert(offsetof(GpuRenderParameters, camera) == 16);
-static_assert(offsetof(GpuRenderParameters, blackHole) == 32);
-static_assert(offsetof(GpuRenderParameters, options) == 48);
+static_assert(offsetof(GpuRenderParameters, observer) == 32);
+static_assert(offsetof(GpuRenderParameters, blackHole) == 48);
+static_assert(offsetof(GpuRenderParameters, options) == 64);
 
 GpuRenderParameters packGpuParameters(const scene::Scene &scene,
                                       FrameInputs frame);

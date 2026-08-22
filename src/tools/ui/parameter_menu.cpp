@@ -271,11 +271,22 @@ void ParameterMenu::draw(app::SceneController &scene,
   gargantua::scene::Scene &model = scene.scene();
   if (ImGui::CollapsingHeader("Camera & lens",
                               ImGuiTreeNodeFlags_DefaultOpen)) {
-    ImGui::SliderFloat("Observer radius", &model.camera.radius, 20.0f, 150.0f,
+    ImGui::SliderFloat("Observer radius", &model.camera.radius,
+                       gargantua::scene::minimumCameraRadius(model), 250.0f,
                        "%.1f M");
-    helpMarker("Boyer-Lindquist radius of the stationary FIDO observer.");
+    helpMarker("Boyer-Lindquist radius. Navigation velocity is measured in "
+               "the local stationary observer's orthonormal frame.");
     ImGui::SliderFloat("Inclination", &model.camera.inclinationDegrees, 5.0f,
                        175.0f, "%.2f deg");
+    ImGui::SliderFloat("Azimuth", &model.camera.azimuthDegrees, -180.0f, 180.0f,
+                       "%+.2f deg");
+    ImGui::SliderFloat("Navigation speed", &model.camera.navigationSpeed, 0.05f,
+                       0.85f, "%.2f c");
+    helpMarker("W/S move radially. A/D and Q/E orbit around the black hole, "
+               "which remains the camera target. Shift boosts up to 0.92 c; "
+               "Ctrl enables precision movement. Acceleration and braking are "
+               "smoothed, while aberration and observer Doppler/beaming are "
+               "applied from the instantaneous velocity.");
     ImGui::SliderFloat("Vertical field of view",
                        &model.camera.verticalFovDegrees, 5.0f, 60.0f,
                        "%.1f deg");
@@ -319,6 +330,7 @@ void ParameterMenu::draw(app::SceneController &scene,
       helpMarker("|Q|/M. The sign does not affect neutral photon paths; the "
                  "range is kept subextremal so an event horizon remains.");
     }
+    gargantua::scene::constrainCamera(model);
     gargantua::scene::constrainDiskRadii(model);
     const float minimumInner = gargantua::scene::minimumDiskInnerRadius(model);
     const float maximumInner = gargantua::scene::maximumDiskInnerRadius(model);
@@ -336,10 +348,12 @@ void ParameterMenu::draw(app::SceneController &scene,
   if (ImGui::CollapsingHeader("Appearance")) {
     ImGui::SliderFloat("Exposure", &model.appearance.exposure, 0.05f, 3.0f,
                        "%.2f", ImGuiSliderFlags_Logarithmic);
-    ImGui::Checkbox("Relativistic colour and beaming",
+    ImGui::Checkbox("Optional disk colour and beaming",
                     &model.appearance.frequencyShiftsEnabled);
     helpMarker("Applies the disk frequency shift and g cubed intensity term. "
-               "The movie-style preset leaves this off.");
+               "The movie-style preset leaves this off. Observer-motion "
+               "aberration and Doppler/beaming always remain physical while "
+               "navigating.");
   }
 
   if (ImGui::CollapsingHeader("Performance")) {

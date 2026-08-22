@@ -24,6 +24,11 @@ int main() {
       !close(scene.disk.temperatureKelvin, 4500.0f) ||
       !close(scene.camera.verticalShift, 0.045f) ||
       !close(scene.camera.rollDegrees, 0.0f) ||
+      !close(scene.camera.azimuthDegrees, 0.0f) ||
+      !close(scene.camera.velocityRadial, 0.0f) ||
+      !close(scene.camera.velocityPolar, 0.0f) ||
+      !close(scene.camera.velocityAzimuthal, 0.0f) ||
+      !close(scene.camera.navigationSpeed, 0.45f) ||
       !close(scene.appearance.exposure, 1.15f) ||
       scene.appearance.frequencyShiftsEnabled) {
     return EXIT_FAILURE;

@@ -12,6 +12,7 @@ struct ReissnerNordstromCameraRay
 ReissnerNordstromCameraRay makeReissnerNordstromStationaryRay(
     Real cameraRadius,
     Real cameraTheta,
+    Real cameraPhi,
     Real mass,
     Real charge,
     vector<Real, 3> localDirection)
@@ -36,15 +37,18 @@ ReissnerNordstromCameraRay makeReissnerNordstromStationaryRay(
     // Kerr-Schild time. Covectors transform with p'_r = p_r-(1/F-1)p_t.
     Real kerrSchildFactor = (Real(1.0) - safeLapse2) / safeLapse2;
     Real transformedRadialMomentum = pR - kerrSchildFactor * pT;
+    Real cosinePhi = cos(cameraPhi);
+    Real sinePhi = sin(cameraPhi);
     vector<Real, 3> radialDirection = vector<Real, 3>(
-        sine, Real(0.0), cosine);
+        sine * cosinePhi, sine * sinePhi, cosine);
     vector<Real, 3> thetaGradient = vector<Real, 3>(
-        cosine / cameraRadius,
-        Real(0.0),
+        cosine * cosinePhi / cameraRadius,
+        cosine * sinePhi / cameraRadius,
         -sine / cameraRadius);
     vector<Real, 3> phiGradient = vector<Real, 3>(
-        Real(0.0),
-        Real(1.0) /
+        -sinePhi /
+            (cameraRadius * max(abs(sine), Real(1.0e-8))),
+        cosinePhi /
             (cameraRadius * max(abs(sine), Real(1.0e-8))),
         Real(0.0));
 

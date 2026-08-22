@@ -28,7 +28,7 @@ and the metric/theory extension workflow.
 - Strong Slang physics values for points, tangent vectors, covectors,
   covariant/contravariant rank-two tensors, and eight-dimensional canonical
   phase space.
-- A horizon-penetrating Cartesian Kerr-Schild metric, explicit stationary-FIDO
+- A horizon-penetrating Cartesian Kerr-Schild metric, explicit moving-observer
   camera and chart transforms, the metric Hamiltonian
   `H = 1/2 g^(mu nu) p_mu p_nu`, exact factorized Kerr-Schild Hamilton
   equations, and fourth-order Runge–Kutta integration. Host science and Vulkan
@@ -39,7 +39,7 @@ and the metric/theory extension workflow.
   valid while rejecting its zero-radius branch disk and ring.
 - A selectable Reissner–Nordström spacetime in horizon-penetrating Cartesian
   Kerr–Schild coordinates, with dimensionless charge `0 <= |Q|/M <= 0.998`, a
-  stationary-observer camera, charged circular-orbit disk kinematics, and its
+  moving-observer camera, charged circular-orbit disk kinematics, and its
   own concrete SPIR-V fragment pipeline. Its exact factorized Hamiltonian flow
   is also shared by host science and Vulkan and tested against automatic
   differentiation. `Q = 0` reduces to Schwarzschild.
@@ -85,8 +85,11 @@ blur, measured IMAX point-spread function, or film spectral-sensitivity curves.
 Those features made DNGR an offline 40,000-line renderer that took 30 minutes
 to hours per 23-megapixel frame. Gargantua traces one central ray per render
 pixel, uses heuristic RK4 step sizes, and adds deterministic output dithering so
-it remains interactive. The camera is a stationary FIDO (`beta = 0`), and the
-disk asset and shifted blackbody-to-RGB conversion are approximations.
+it remains interactive. Interactive motion is specified in the local
+stationary tetrad and Lorentz-boosted into the ray integrator, including
+aberration and observer Doppler/beaming. Acceleration is an interactive camera
+control rather than a dynamically integrated spacecraft, and the disk asset
+and shifted blackbody-to-RGB conversion are approximations.
 
 ## Requirements
 
@@ -161,7 +164,11 @@ the canonical physics modules or active fragment pipeline.
 |---|---|
 | `Space` | Pause or resume disk motion |
 | `R` | Restore the paper-inspired shot defaults |
-| `D` | Toggle colour and `g^3` brightness shifts (roughly Figure 15(c)) |
+| `W` / `S` | Move inward or outward |
+| `A` / `D` | Orbit left or right around the black hole |
+| `Q` / `E` | Orbit north or south around the black hole |
+| `Shift` / `Ctrl` | Relativistic boost or precision movement |
+| `T` | Toggle disk colour and `g^3` brightness shifts (roughly Figure 15(c)) |
 | `F` | Toggle the configured FPS cap |
 | `F1` | Show or hide the parameter menu |
 | `U` | Show or hide this process's CPU/GPU statistics overlay |
@@ -171,7 +178,7 @@ the canonical physics modules or active fragment pipeline.
 | `Esc` | Quit |
 
 The in-window menu exposes a Kerr/Reissner–Nordström selector, spin or charge,
-camera geometry and roll, disk dimensions and temperature, exposure,
+camera position, navigation speed, geometry and roll, disk dimensions and temperature, exposure,
 relativistic shifts, animation state, an adjustable 5–60 FPS limit, and three
 ray-integration quality presets. Changing spacetime rebuilds only the concrete
 ray pipeline and preserves the rest of the scene.
@@ -213,7 +220,7 @@ exact factorized Kerr and Reissner–Nordström flows against their scalar
 Hamiltonians and reverse-mode automatic references. It also covers the
 uncharged Schwarzschild limit, tensor variance, connections and curvature,
 Hamiltonian invariants, adaptive integration, scene behaviour, 16-bit output,
-and the reflected 64-byte C++/Slang push-constant contract. The active SPIR-V
+and the reflected 80-byte C++/Slang push-constant contract. The active SPIR-V
 fragment is compiled as an input to the shader-interface test. A compile-only
 SPIR-V fixture also instantiates the quartic-dispersion theory through the
 reverse-mode automatic fallback on the GPU target.
@@ -278,7 +285,7 @@ DNGR's ray-bundle footprint and proprietary artist-authored disk asset. Set
 radius.
 
 `src/rendering/gpu_parameters.*` is the only scene-to-GPU conversion. It packs
-the domain scene and per-frame values into the exact 64-byte
+the domain scene and per-frame values into the exact 80-byte
 `GpuRenderParameters` transfer object mirrored by `RenderParameters` in
 `shaders/black_hole.slang`. Static C++ layout assertions and Slang reflection
 protect that ABI.

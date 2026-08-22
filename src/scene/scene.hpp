@@ -15,10 +15,17 @@ inline constexpr float kMinimumDiskWidth = 0.1f;
 struct Camera {
   float radius = 0.0f;
   float inclinationDegrees = 0.0f;
+  float azimuthDegrees = 0.0f;
   float verticalFovDegrees = 0.0f;
   float horizontalShift = 0.0f;
   float verticalShift = 0.0f;
   float rollDegrees = 0.0f;
+  // Physical velocity measured by the local stationary orthonormal observer.
+  // Components are fractions of c along (radial, polar, azimuthal).
+  float velocityRadial = 0.0f;
+  float velocityPolar = 0.0f;
+  float velocityAzimuthal = 0.0f;
+  float navigationSpeed = 0.45f;
 };
 
 enum class SpacetimeModel {
@@ -93,6 +100,19 @@ inline void constrainDiskRadii(Scene &scene) {
       std::clamp(scene.disk.innerRadius, minimumInner, maximumInner);
   scene.disk.outerRadius =
       std::max(scene.disk.outerRadius, minimumDiskOuterRadius(scene));
+}
+
+inline float minimumCameraRadius(const Scene &scene) {
+  return outerHorizonRadius(scene.spacetime) * 1.08f;
+}
+
+inline void constrainCamera(Scene &scene) {
+  scene.camera.radius =
+      std::clamp(scene.camera.radius, minimumCameraRadius(scene), 250.0f);
+  scene.camera.inclinationDegrees =
+      std::clamp(scene.camera.inclinationDegrees, 2.0f, 178.0f);
+  scene.camera.navigationSpeed =
+      std::clamp(scene.camera.navigationSpeed, 0.01f, 0.92f);
 }
 
 } // namespace gargantua::scene

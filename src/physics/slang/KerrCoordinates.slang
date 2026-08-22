@@ -115,6 +115,7 @@ Real kerrSchildAxialMomentum(PhaseSpaceState state)
 KerrCameraRay makeStationaryFidoRay(
     Real cameraRadius,
     Real cameraTheta,
+    Real cameraPhi,
     Real mass,
     Real spin,
     vector<Real, 3> localDirection)
@@ -139,7 +140,7 @@ KerrCameraRay makeStationaryFidoRay(
     BoyerLindquistState boyerLindquist;
     boyerLindquist.r = cameraRadius;
     boyerLindquist.theta = cameraTheta;
-    boyerLindquist.phi = Real(0.0);
+    boyerLindquist.phi = cameraPhi;
     boyerLindquist.pR = energyScale * rho * localDirection.x /
         sqrt(max(delta, Real(1.0e-10)));
     boyerLindquist.pTheta = energyScale * rho * localDirection.y;
@@ -154,4 +155,3 @@ KerrCameraRay makeStationaryFidoRay(
         (Real(1.0) - omega * boyerLindquist.pPhi) / max(alpha, Real(1.0e-8));
     return result;
 }
-

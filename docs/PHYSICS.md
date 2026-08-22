@@ -59,11 +59,27 @@ renderer’s horizon-dependent scene policy.
 ## Camera and chart transformation
 
 The virtual lens makes a local direction from vertical field of view, aspect
-ratio, and horizontal/vertical framing shifts. The observer construction uses
-the paper's Boyer–Lindquist 3+1 quantities—lapse, frame dragging, and
-circumferential radius—to create a stationary-FIDO (`beta = 0`) null ray. The
-production DNGR camera could move and therefore also included aberration;
-Gargantua deliberately omits that motion.
+ratio, and horizontal/vertical framing shifts. Position is expressed by
+Boyer–Lindquist radius, inclination, and azimuth. Navigation supplies a
+three-velocity in the local stationary orthonormal tetrad. Each photon is
+Lorentz-boosted from the moving camera tetrad into that stationary tetrad,
+which applies special-relativistic aberration before the curved-spacetime ray
+is initialized. The observer construction then uses the paper's
+Boyer–Lindquist 3+1 quantities—lapse, frame dragging, and circumferential
+radius—to create the null covector.
+
+Orbital navigation is target-locked to the black hole. The center photon is
+first inverse-aberrated into the moving observer tetrad so that boosting it
+back into the stationary tetrad produces the inward-looking radial line. The
+rest of the virtual lens is constructed around that center direction, so the
+black hole remains the rotation pivot while aberration still distorts the
+surrounding field physically.
+
+Keyboard input approaches its requested local velocity exponentially and
+returns to rest with a short braking response. This is an interaction model,
+not a solved spacecraft trajectory, but it avoids discontinuous observer-frame
+changes: aberration, frequency shift, and position advancement all use the same
+smoothed instantaneous velocity.
 
 The celestial environment is stored in ICRS/J2000 right ascension and
 declination. A fixed orthonormal Hipparcos/Gaia galactic-frame rotation places
@@ -306,7 +322,12 @@ g = E_camera / E_emitter.
 
 Colour temperature is shifted by `g`, and intensity uses the `g^3`
 consequence of the invariant `I_nu / nu^3`. The default Figure 15(a) preset
-disables these shifts because the movie deliberately suppressed them.
+disables disk shifts because the movie deliberately suppressed them. During
+navigation, observer-motion frequency shifts remain active together with
+aberration: the camera energy is divided by the Lorentz boost's
+`gamma (1 + beta dot n)` factor. The HDR sky uses the exact `g^3` intensity
+factor and a bounded RGB chromatic approximation because the environment map
+is not spectral.
 
 The filament field, palette, opacity, blackbody-to-RGB approximation,
 background, dithering, and tone mapping are appearance choices in

@@ -216,7 +216,7 @@ scene_model -> gpu_parameters -> interactive_app / offscreen_renderer
 ```
 
 `packGpuParameters()` is the only domain-to-GPU conversion. It creates a local
-64-byte `GpuRenderParameters` object immediately before drawing. Slang
+80-byte `GpuRenderParameters` object immediately before drawing. Slang
 reflection and C++ static assertions protect the corresponding
 `RenderParameters` push-constant offsets and size.
 

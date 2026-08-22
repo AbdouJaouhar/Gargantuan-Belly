@@ -16,6 +16,14 @@ struct CameraParameters
     float horizontalShift;
 }
 
+struct ObserverMotion
+{
+    float azimuthDegrees;
+    float velocityRadial;
+    float velocityPolar;
+    float velocityAzimuthal;
+}
+
 struct BlackHoleParameters
 {
     float metricParameter;
@@ -38,6 +46,7 @@ struct RenderParameters
     float time;
     float exposure;
     CameraParameters camera;
+    ObserverMotion observer;
     BlackHoleParameters blackHole;
     RenderOptions options;
 }
@@ -65,6 +74,100 @@ static const float kDiskMaterialFadeStart = 0.75;
 float saturateValue(float value)
 {
     return clamp(value, 0.0, 1.0);
+}
+
+float observerSpeedSquared()
+{
+    float3 velocity = float3(
+        pc.observer.velocityRadial,
+        pc.observer.velocityPolar,
+        pc.observer.velocityAzimuthal);
+    return dot(velocity, velocity);
+}
+
+bool frequencyEffectsEnabled()
+{
+    // Motion-induced shifts are intrinsic to navigation. The menu toggle also
+    // enables disk/gravitational shifts for an observer at rest.
+    return pc.options.frequencyShiftsEnabled > 0.5 ||
+           observerSpeedSquared() > 1.0e-8;
+}
+
+struct BoostedRayDirection
+{
+    float3 stationaryDirection;
+    float stationaryEnergyPerObserverEnergy;
+}
+
+BoostedRayDirection boostRayFromObserver(float3 observerDirection)
+{
+    float3 velocity = float3(
+        pc.observer.velocityRadial,
+        pc.observer.velocityPolar,
+        pc.observer.velocityAzimuthal);
+    float speed2 = dot(velocity, velocity);
+    if (speed2 > 0.92 * 0.92)
+    {
+        velocity *= 0.92 * rsqrt(speed2);
+        speed2 = 0.92 * 0.92;
+    }
+    float gamma = rsqrt(max(1.0 - speed2, 1.0e-5));
+    float directionalVelocity = dot(velocity, observerDirection);
+    float boostCoefficient = speed2 > 1.0e-10
+        ? (gamma - 1.0) * directionalVelocity / speed2 + gamma
+        : 0.0;
+
+    // Lorentz-transform a unit-frequency photon from the moving camera's
+    // tetrad into the local stationary (FIDO/static) tetrad. This is the
+    // aberration step; geodesic integration then proceeds in the curved metric.
+    float stationaryEnergy = gamma * (1.0 + directionalVelocity);
+    float3 stationaryMomentum =
+        observerDirection + boostCoefficient * velocity;
+    BoostedRayDirection result;
+    result.stationaryDirection =
+        stationaryMomentum / max(stationaryEnergy, 1.0e-5);
+    result.stationaryEnergyPerObserverEnergy =
+        max(stationaryEnergy, 1.0e-5);
+    return result;
+}
+
+float3 targetLockedObserverDirection(float2 screen, float tangentHalfFov)
+{
+    float3 velocity = float3(
+        pc.observer.velocityRadial,
+        pc.observer.velocityPolar,
+        pc.observer.velocityAzimuthal);
+    float speed2 = dot(velocity, velocity);
+    if (speed2 > 0.92 * 0.92)
+    {
+        velocity *= 0.92 * rsqrt(speed2);
+        speed2 = 0.92 * 0.92;
+    }
+
+    // The center ray must point radially away from the black hole in the
+    // stationary tetrad (it is the future-directed photon arriving from the
+    // target). Inverse aberration gives the direction that achieves that in
+    // the moving observer's frame, keeping orbital navigation target-locked.
+    float3 stationaryCenter = float3(1.0, 0.0, 0.0);
+    float gamma = rsqrt(max(1.0 - speed2, 1.0e-5));
+    float directionalVelocity = dot(velocity, stationaryCenter);
+    float inverseBoostCoefficient = speed2 > 1.0e-10
+        ? (gamma - 1.0) * directionalVelocity / speed2 - gamma
+        : 0.0;
+    float observerEnergy = gamma * (1.0 - directionalVelocity);
+    float3 center = normalize(
+        (stationaryCenter + inverseBoostCoefficient * velocity) /
+        max(observerEnergy, 1.0e-5));
+
+    // Parallel-transport the familiar screen-up direction onto the target
+    // plane, then construct screen-right around the same radial pivot.
+    float3 verticalSeed = float3(0.0, -1.0, 0.0);
+    float3 vertical = normalize(
+        verticalSeed - center * dot(verticalSeed, center));
+    float3 horizontal = normalize(cross(center, vertical));
+    return normalize(
+        center + screen.y * tangentHalfFov * vertical +
+        screen.x * tangentHalfFov * horizontal);
 }
 
 float hash12(float2 p)
@@ -288,14 +391,14 @@ float3 diskEmission(
 
     float shift = 1.0;
     float intensityShift = 1.0;
-    if (pc.options.frequencyShiftsEnabled > 0.5)
+    if (frequencyEffectsEnabled())
     {
         shift = frequencyShift;
         intensityShift = pow(shift, 3.0);
     }
 
     float3 colour = paperDiskPalette(emissionLevel);
-    if (pc.options.frequencyShiftsEnabled > 0.5)
+    if (frequencyEffectsEnabled())
     {
         float3 base = max(
             blackbodyRgb(pc.blackHole.diskTemperatureKelvin), float3(1.0e-4));
@@ -312,6 +415,22 @@ struct TraceResult
     float transmittance;
     float escaped;
     float3 skyDirection;
+    float skyFrequencyShift;
+}
+
+float3 shiftedSkyRadiance(float3 radiance, float frequencyShift)
+{
+    if (!frequencyEffectsEnabled())
+        return radiance;
+    float shift = clamp(frequencyShift, 0.18, 3.5);
+    // The environment is RGB rather than spectral, so retain the exact I_nu/
+    // nu^3 intensity invariant and use a bounded chromatic approximation.
+    float3 chromatic = float3(
+        pow(shift, -0.55),
+        1.0,
+        pow(shift, 0.55));
+    return radiance * pow(shift, 3.0) * clamp(
+        chromatic, float3(0.35), float3(2.8));
 }
 
 float3 sampleSky(float3 direction)
@@ -368,18 +487,19 @@ KerrCameraRay makeCameraRay(float2 pixel, float spin)
         sineRoll * screen.x + cosineRoll * screen.y);
     float tangentHalfFov = tan(0.5 * radians(
         clamp(pc.camera.verticalFovDegrees, 5.0, 100.0)));
-    float3 cameraDirection = normalize(float3(
-        -1.0,
-        screen.y * tangentHalfFov,
-        screen.x * tangentHalfFov));
-    float3 fidoDirection = -cameraDirection;
+    float3 observerDirection =
+        targetLockedObserverDirection(screen, tangentHalfFov);
+    BoostedRayDirection boosted = boostRayFromObserver(observerDirection);
     float horizon = kerrOuterHorizon(1.0, spin);
-    return makeStationaryFidoRay(
+    KerrCameraRay ray = makeStationaryFidoRay(
         max(pc.camera.radius, horizon * 1.025),
         radians(clamp(pc.camera.inclinationDegrees, 2.0, 178.0)),
+        radians(pc.observer.azimuthDegrees),
         1.0,
         spin,
-        fidoDirection);
+        boosted.stationaryDirection);
+    ray.observerEnergy /= boosted.stationaryEnergyPerObserverEnergy;
+    return ray;
 }
 
 TraceResult traceKerrRay(float2 pixel)
@@ -405,6 +525,7 @@ TraceResult traceKerrRay(float2 pixel)
     result.transmittance = 1.0;
     result.escaped = 0.0;
     result.skyDirection = float3(1.0, 0.0, 0.0);
+    result.skyFrequencyShift = cameraRay.observerEnergy;
 
     for (int stepIndex = 0; stepIndex < kMaxGeodesicSteps; ++stepIndex)
     {
@@ -533,18 +654,19 @@ ReissnerNordstromCameraRay makeReissnerNordstromCameraRay(
         sineRoll * screen.x + cosineRoll * screen.y);
     float tangentHalfFov = tan(0.5 * radians(
         clamp(pc.camera.verticalFovDegrees, 5.0, 100.0)));
-    float3 cameraDirection = normalize(float3(
-        -1.0,
-        screen.y * tangentHalfFov,
-        screen.x * tangentHalfFov));
-    float3 stationaryDirection = -cameraDirection;
+    float3 observerDirection =
+        targetLockedObserverDirection(screen, tangentHalfFov);
+    BoostedRayDirection boosted = boostRayFromObserver(observerDirection);
     float horizon = reissnerNordstromOuterHorizon(1.0, charge);
-    return makeReissnerNordstromStationaryRay(
+    ReissnerNordstromCameraRay ray = makeReissnerNordstromStationaryRay(
         max(pc.camera.radius, horizon * 1.025),
         radians(clamp(pc.camera.inclinationDegrees, 2.0, 178.0)),
+        radians(pc.observer.azimuthDegrees),
         1.0,
         charge,
-        stationaryDirection);
+        boosted.stationaryDirection);
+    ray.observerEnergy /= boosted.stationaryEnergyPerObserverEnergy;
+    return ray;
 }
 
 TraceResult traceReissnerNordstromRay(float2 pixel)
@@ -571,6 +693,7 @@ TraceResult traceReissnerNordstromRay(float2 pixel)
     result.transmittance = 1.0;
     result.escaped = 0.0;
     result.skyDirection = float3(1.0, 0.0, 0.0);
+    result.skyFrequencyShift = cameraRay.observerEnergy;
 
     for (int stepIndex = 0; stepIndex < kMaxGeodesicSteps; ++stepIndex)
     {
@@ -700,7 +823,8 @@ float4 fragmentMain(FragmentInput input) : SV_Target0
     TraceResult trace = traceKerrRay(input.uv);
     float3 hdr = trace.radiance;
     if (trace.escaped > 0.5 && trace.transmittance > 0.0)
-        hdr += trace.transmittance * sampleSky(trace.skyDirection);
+        hdr += trace.transmittance * shiftedSkyRadiance(
+            sampleSky(trace.skyDirection), trace.skyFrequencyShift);
     float dither = hash12(input.position.xy + 0.01 * pc.time) - 0.5;
     float3 mapped = filmicLuminance(hdr * max(pc.exposure, 0.01));
     mapped += dither / 3294.0;
@@ -713,7 +837,8 @@ float4 reissnerNordstromFragmentMain(FragmentInput input) : SV_Target0
     TraceResult trace = traceReissnerNordstromRay(input.uv);
     float3 hdr = trace.radiance;
     if (trace.escaped > 0.5 && trace.transmittance > 0.0)
-        hdr += trace.transmittance * sampleSky(trace.skyDirection);
+        hdr += trace.transmittance * shiftedSkyRadiance(
+            sampleSky(trace.skyDirection), trace.skyFrequencyShift);
     float dither = hash12(input.position.xy + 0.01 * pc.time) - 0.5;
     float3 mapped = filmicLuminance(hdr * max(pc.exposure, 0.01));
     mapped += dither / 3294.0;

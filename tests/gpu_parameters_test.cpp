@@ -16,6 +16,10 @@ int main() {
   gargantua::scene::Scene scene = gargantua::scene::figure15aScene();
   scene.camera.horizontalShift = -0.25f;
   scene.camera.rollDegrees = 32.5f;
+  scene.camera.azimuthDegrees = -42.0f;
+  scene.camera.velocityRadial = -0.2f;
+  scene.camera.velocityPolar = 0.1f;
+  scene.camera.velocityAzimuthal = 0.3f;
   scene.appearance.frequencyShiftsEnabled = true;
 
   const gargantua::rendering::GpuRenderParameters parameters =
@@ -27,6 +31,10 @@ int main() {
       !close(parameters.camera.inclinationDegrees, 86.56f) ||
       !close(parameters.camera.verticalFovDegrees, 30.0f) ||
       !close(parameters.camera.horizontalShift, -0.25f) ||
+      !close(parameters.observer.azimuthDegrees, -42.0f) ||
+      !close(parameters.observer.velocityRadial, -0.2f) ||
+      !close(parameters.observer.velocityPolar, 0.1f) ||
+      !close(parameters.observer.velocityAzimuthal, 0.3f) ||
       !close(parameters.blackHole.metricParameter, 0.6f) ||
       !close(parameters.blackHole.diskInnerRadius, 6.0f) ||
       !close(parameters.blackHole.diskOuterRadius, 18.7f) ||
