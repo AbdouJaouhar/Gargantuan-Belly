@@ -31,7 +31,7 @@ void Application::createInstance() {
   }
 
   instance_ = rendering::VulkanInstance(
-      "Gargantua",
+      "Gargantuan-Belly",
       std::vector<const char *>(extensions, extensions + extensionCount));
 }
 

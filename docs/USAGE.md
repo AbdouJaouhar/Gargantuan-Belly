@@ -38,7 +38,7 @@ bazel run --config=nvidia //:gargantua
 ```
 
 Check the `Using Vulkan device: ...` startup line. The preset changes device
-selection only. Gargantua rejects Vulkan CPU devices such as `llvmpipe` instead
+selection only. Gargantuan-Belly rejects Vulkan CPU devices such as `llvmpipe` instead
 of silently rendering in software. Containers and remote sessions must expose
 a vendor or passed-through Vulkan device and driver.
 

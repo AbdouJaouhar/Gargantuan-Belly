@@ -18,7 +18,7 @@ filegroup(
 )
 
 # Generated host C++ includes Slang's portable scalar/vector prelude.  The
-# generated physics itself is compiled into Gargantua; libslang is not linked
+# generated physics itself is compiled into Gargantuan-Belly; libslang is not linked
 # into the application or tests.
 cc_library(
     name = "host_prelude",

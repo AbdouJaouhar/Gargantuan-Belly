@@ -8,7 +8,7 @@
 namespace gargantua::rendering {
 
 // CPU Vulkan implementations are useful for validation, but accidentally
-// rendering Gargantua through one makes the interactive program unusably slow.
+// rendering Gargantuan-Belly through one makes the interactive program unusably slow.
 // Unknown non-CPU device types remain eligible at the lowest priority because
 // Vulkan does not guarantee that OTHER means a software implementation.
 [[nodiscard]] inline std::optional<uint64_t>

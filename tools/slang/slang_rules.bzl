@@ -1,4 +1,4 @@
-"""Small hermetic rules for Gargantua's pinned Slang compiler."""
+"""Small hermetic rules for Gargantuan-Belly's pinned Slang compiler."""
 
 SlangLibraryInfo = provider(fields = ["sources"])
 

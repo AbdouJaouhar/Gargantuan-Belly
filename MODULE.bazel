@@ -35,7 +35,7 @@ http_archive(
 # One source language now feeds both sides of the physics engine: Slang emits
 # SPIR-V for Vulkan and ordinary C++ for the host-side scientific harness.
 # The compiler is a pinned official binary release; it is a build tool, not a
-# runtime dependency of Gargantua.
+# runtime dependency of Gargantuan-Belly.
 http_archive(
     name = "slang_toolchain",
     build_file = "//third_party:slang.BUILD.bazel",

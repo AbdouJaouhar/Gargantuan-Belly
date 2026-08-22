@@ -258,7 +258,7 @@ void ParameterMenu::draw(app::SceneController &scene,
   const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse |
                                  ImGuiWindowFlags_AlwaysAutoResize |
                                  ImGuiWindowFlags_NoSavedSettings;
-  if (!ImGui::Begin("Gargantua controls", &visible_, flags)) {
+  if (!ImGui::Begin("Gargantuan-Belly controls", &visible_, flags)) {
     ImGui::End();
     return;
   }

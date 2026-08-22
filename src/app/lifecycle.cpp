@@ -33,7 +33,7 @@ void Application::run() {
   initWindow();
   initVulkan();
 
-  glfwSetWindowTitle(window_, "Gargantua - Loading...");
+  glfwSetWindowTitle(window_, "Gargantuan-Belly - Loading...");
   glfwShowWindow(window_);
   glfwPollEvents();
   menu_.beginLoadingFrame(selectedDeviceName_);
@@ -181,7 +181,7 @@ void Application::initWindow() {
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
   window_ = glfwCreateWindow(static_cast<int>(kInitialWidth),
-                             static_cast<int>(kInitialHeight), "Gargantua",
+                             static_cast<int>(kInitialHeight), "Gargantuan-Belly",
                              nullptr, nullptr);
   if (window_ == nullptr) {
     throw std::runtime_error("Could not create the GLFW window");

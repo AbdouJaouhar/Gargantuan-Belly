@@ -16,7 +16,7 @@ using bazel::tools::cpp::runfiles::Runfiles;
 using vulkan::checkVk;
 
 void OffscreenRenderer::createInstance() {
-  instance_ = VulkanInstance("Gargantua headless renderer", {});
+  instance_ = VulkanInstance("Gargantuan-Belly headless renderer", {});
 }
 
 std::optional<uint32_t>

@@ -1,6 +1,6 @@
 # Physics and rendering guide
 
-Gargantua follows the camera and radiative-transfer notation of James et al.,
+Gargantuan-Belly follows the camera and radiative-transfer notation of James et al.,
 *Gravitational Lensing by Spinning Black Holes in Astrophysics, and in the
 Movie Interstellar*. It is a real-time approximation of DNGR.
 
@@ -246,7 +246,7 @@ propagation.
 
 Kerr spacetime with fixed mass and spin is stationary and axisymmetric. Its
 shadow and lens map therefore do not rotate as a visible object; frame dragging
-is already encoded in the stationary geodesics. The motion shown by Gargantua
+is already encoded in the stationary geodesics. The motion shown by Gargantuan-Belly
 is the procedural accretion-disk material. It is an appearance model, not an
 evolution of the metric or a hydrodynamic simulation, and animation time never
 enters `KerrSchildMetric`, `KerrSchildHamiltonianSystem`, or the RK4 state.

@@ -3,7 +3,7 @@
 A real-time Vulkan renderer for cinematic, gravitationally lensed Kerr and
 Reissner–Nordström black holes.
 
-![A headless Vulkan render of Gargantua](docs/gargantua.png)
+![A headless Vulkan render from Gargantuan-Belly](docs/gargantua.png)
 
 The renderer is inspired by DNGR and calibrated against the unshifted,
 unflared disk in Figure 15(a) of:

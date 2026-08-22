@@ -1,6 +1,6 @@
 # Canonical physics engine architecture
 
-Gargantua has one source of truth for production ray physics: the Slang modules
+Gargantuan-Belly has one source of truth for production ray physics: the Slang modules
 in `src/physics/slang/`. Bazel compiles those modules in two forms:
 
 ```text
@@ -117,7 +117,7 @@ status. `canonical_engine.*` wraps those arrays and status in small
 sizes; the typed metric adapter performs point, status, and finite-output
 checks.
 
-Slang's generated-C++ target is experimental upstream. Gargantua therefore
+Slang's generated-C++ target is experimental upstream. Gargantuan-Belly therefore
 pins an exact compiler release, keeps the generated ABI behind
 `canonical_engine.*`, and gates it with host/oracle and SPIR-V compile tests.
 Application code never depends directly on generated Slang declarations.

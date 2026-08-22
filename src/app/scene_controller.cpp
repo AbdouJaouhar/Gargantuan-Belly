@@ -263,7 +263,7 @@ void SceneController::updateNavigation(GLFWwindow *window, float deltaSeconds,
 void SceneController::updateWindowTitle(GLFWwindow *window) const {
   std::ostringstream title;
   const bool kerr = scene_.spacetime.model == scene::SpacetimeModel::Kerr;
-  title << std::fixed << std::setprecision(2) << "Gargantua | "
+  title << std::fixed << std::setprecision(2) << "Gargantuan-Belly | "
         << (kerr ? "Kerr" : "Reissner-Nordstrom") << " | exposure "
         << scene_.appearance.exposure << (kerr ? " | spin " : " | charge ")
         << scene::activeMetricParameter(scene_.spacetime) << " | shift "
